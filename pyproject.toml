@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "yace"
+version = "0.1.0"
+description = "Yet Another Coreset Evaluation"
+authors = ["Omar Ali Sheikh <sheikhomar@users.noreply.github.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "3.8.10"
+numba = "^0.55.1"
+scipy = "^1.8.0"
+seaborn = "^0.11.2"
+pandas = "^1.4.2"
+psutil = "^5.9.0"
+tqdm = "^4.64.0"
+
+[tool.poetry.dev-dependencies]
+jupyterlab = "^3.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
