@@ -47,7 +47,6 @@ class JobCreator:
                 job_info.command = f"poetry run python -m yace.run_experiment"
                 job_info.command_params = {
                     "experiment-type": self._experiment_type,
-                    "experiment-name": self._experiment_name,
                     "params-path": str(params_path),
                     "working-dir": str(working_dir),
                 }
