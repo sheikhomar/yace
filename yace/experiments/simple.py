@@ -99,6 +99,7 @@ class SimpleInstanceExperiment(Experiment):
 
         with open(output_dir / "done.out", "w") as f:
             f.write("done")
+        logger.debug("Done")
 
     def _evaluate_random_solutions(self, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, n_repetitions: int) -> pd.DataFrame:
         logger.debug("Evaluating solution...")
