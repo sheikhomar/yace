@@ -15,10 +15,9 @@ from yace.clustering.kmeans import kmeans_plusplus
 
 
 class SensitivitySampling:
-    def __init__(self, n_clusters: int, coreset_size: int, output_dir: Path) -> None:
+    def __init__(self, n_clusters: int, coreset_size: int) -> None:
         self._n_clusters = n_clusters
         self._coreset_size = coreset_size
-        self._output_dir = output_dir
     
     def run(self, X):
         D = self._compute_kmeans_cluster_distances(X=X)
@@ -62,8 +61,7 @@ class SensitivitySampling:
         else:
             weighted_coreset_points = np.hstack([coreset_weights[:,None], coreset_points])
 
-        output_file_path = self._output_dir / "results.npz"
-        np.savez_compressed(output_file_path, matrix=weighted_coreset_points)
+        return weighted_coreset_points
 
     def _compute_kmeans_cluster_distances(self, X):
         # Precompute squared norms of data points

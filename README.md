@@ -21,13 +21,13 @@ This projects relies on [pyenv](https://github.com/pyenv/pyenv) and [Poetry](htt
 3. Create jobs
 
    ```bash
-   poetry run python -m app.create_jobs -q data/queue -o data/experiments -t rwe -n n_dim -r 1
+   poetry run python -m yace.create_jobs -q data/queue -o data/experiments -t simple -n initial_ss_01 -r 1
    ```
 
 4. Run worker
 
    ```bash
-   poetry run python -m app.run_worker -q data/queue --n-threads 1 --max-active 1
+   poetry run python -m yace.run_worker -q data/queue --n-threads 1 --max-active 1
    ```
 
 5. Download experiments results from server
