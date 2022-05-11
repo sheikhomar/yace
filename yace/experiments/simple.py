@@ -1,19 +1,21 @@
 import dataclasses, os
-import json
 
 from pathlib import Path
-from textwrap import wrap
 from typing import Dict, List, Generator
 
 import numpy as np
 import pandas as pd
 
 from dacite import from_dict
-from yace.coresets.sensitivity_sampling import SensitivitySampling
+from sklearn.metrics.pairwise import _euclidean_distances
+from sklearn.metrics import pairwise_distances
+from sklearn.preprocessing import normalize
+from sklearn.utils.extmath import row_norms
 
+from yace.coresets.sensitivity_sampling import SensitivitySampling
+from yace.data.synthetic import generate_simplex
 from yace.experiments import Experiment, ExperimentParams, make_experiment_generation_registry
 from yace.helpers.logger import get_logger
-from yace.data.synthetic import generate_simplex
 
 
 @dataclasses.dataclass
@@ -52,6 +54,8 @@ def create_experiment_param(
     )
 
 
+logger = get_logger(name="sie")
+
 class SimpleInstanceExperiment(Experiment):
     def __init__(self, experiment_params: Dict[str, object], working_dir: str) -> None:
         super().__init__()
@@ -62,8 +66,6 @@ class SimpleInstanceExperiment(Experiment):
         self._working_dir = working_dir
 
     def run(self) -> None:
-        logger = get_logger(name="sie")
-
         logger.debug(f"Running SimpleInstanceExperiment with params: \n{self._params}")
 
         np.random.default_rng(self._params.random_seed)
@@ -83,13 +85,75 @@ class SimpleInstanceExperiment(Experiment):
                 n_clusters=self._params.k,
                 coreset_size=self._params.coreset_size,
             )
-            coreset = algorithm.run(X)
-            output_file_path = output_dir / "coreset.npz"
-            np.savez_compressed(output_file_path, matrix=coreset)
+            coreset_points, coreset_weights = algorithm.run(X)
+            np.savez_compressed(output_dir/"coreset-points.npz", matrix=coreset_points)
+            np.savez_compressed(output_dir/"coreset-weights.npz", matrix=coreset_weights)
+
+            df_distortions = self._evaluate_random_solutions(
+                input_points=X,
+                coreset_points=coreset_points,
+                coreset_weights=coreset_weights,
+                n_repetitions=50,
+            )
+            df_distortions.to_feather(output_dir/"distortions.feather")
 
         with open(output_dir / "done.out", "w") as f:
             f.write("done")
 
+    def _evaluate_random_solutions(self, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, n_repetitions: int) -> pd.DataFrame:
+        logger.debug("Evaluating solution...")
+
+        n_dim = input_points.shape[1]
+        k = self._params.k
+
+        results = []
+        for iter in range(n_repetitions):
+            logger.debug(f"Solution {iter}")
+            # Generate a solution that consists of a set of k d-dimensional vectors
+            solution = np.random.normal(loc=0, scale=1, size=(k, n_dim))
+
+            # Normalize the solution
+            solution = normalize(solution)
+
+            coreset_cost = self._compute_coreset_cost(
+                coreset_points=coreset_points,
+                coreset_weights=coreset_weights,
+                candidate_solution=solution,
+            )
+
+            input_cost = self._compute_input_cost(
+                input_points=input_points,
+                candidate_solution=solution,
+            )
+
+            del solution
+
+            distortion = max(float(input_cost/coreset_cost), float(coreset_cost/input_cost))
+
+            results.append(dict(
+                coreset_cost=coreset_cost,
+                input_cost=input_cost,
+                distortion=distortion,
+            ))
+
+        return pd.DataFrame(results)
+
+    def _compute_coreset_cost(self, coreset_points: np.ndarray, coreset_weights: np.ndarray, candidate_solution: np.ndarray):
+        # Distances between all corset points and candidate solution points
+        dist_sq = _euclidean_distances(X=coreset_points, Y=candidate_solution, squared=True)
+
+        # For each point (w, p) in S, find the distance to its closest center
+        closest_dist_sq = np.min(dist_sq, axis=1)
+
+        coreset_cost = np.sum(coreset_weights * closest_dist_sq)
+        return coreset_cost
+
+    def _compute_input_cost(self, input_points: np.ndarray, candidate_solution: np.ndarray) -> float:
+        dist_sq = _euclidean_distances(X=input_points, Y=candidate_solution, squared=True)
+        closest_dist_sq = np.min(dist_sq, axis=1)
+        input_cost = np.sum(closest_dist_sq)
+        return input_cost
+       
 
 experiment_generation = make_experiment_generation_registry()
 

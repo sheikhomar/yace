@@ -48,20 +48,16 @@ class SensitivitySampling:
 
             coreset_points.append(centroid)
 
-        # Combine everything
+        # Combine coreset points
         if issparse(X):
             coreset_points = sp_sparse.vstack(coreset_points, format="csr")
         else:
             coreset_points = np.vstack(coreset_points)
 
-        # Include the weights
+        # Combine coreset weights
         coreset_weights = np.concatenate([sampled_weights, center_weights])
-        if issparse(X):
-            weighted_coreset_points = sp_sparse.hstack([coreset_weights[:,None], coreset_points])
-        else:
-            weighted_coreset_points = np.hstack([coreset_weights[:,None], coreset_points])
 
-        return weighted_coreset_points
+        return coreset_points, coreset_weights
 
     def _compute_kmeans_cluster_distances(self, X):
         # Precompute squared norms of data points
