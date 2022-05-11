@@ -15,13 +15,11 @@ logger = get_logger("runner")
 class ExperimentRunner:
     def __init__(
         self, experiment_type: str,
-        experiment_name: str,
         params_path: str,
         working_dir: str,
         n_threads: int
     ) -> None:
         self._experiment_type = experiment_type
-        self._experiment_name = experiment_name
         self._params_path = params_path
         self._working_dir = working_dir
         self._n_threads = n_threads
@@ -54,12 +52,6 @@ class ExperimentRunner:
     required=True,
 )
 @click.option(
-    "-n",
-    "--experiment-name",
-    type=click.STRING,
-    required=True,
-)
-@click.option(
     "-p",
     "--params-path",
     type=click.STRING,
@@ -76,10 +68,9 @@ class ExperimentRunner:
     type=click.INT,
     required=True,
 )
-def main(experiment_type: str, experiment_name: str, params_path: str, working_dir: str, n_threads: int):
+def main(experiment_type: str, params_path: str, working_dir: str, n_threads: int):
     ExperimentRunner(
         experiment_type=experiment_type,
-        experiment_name=experiment_name,
         params_path=params_path,
         working_dir=working_dir,
         n_threads=n_threads,
