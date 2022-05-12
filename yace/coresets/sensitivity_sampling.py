@@ -67,7 +67,14 @@ class SensitivitySampling(SamplingBasedAlgorithm):
         scaled_costs = self._coreset_size * point_costs[sampled_indices]
 
         # The weight of the sampled point is now: cost(A) / (T*cost(p,X))
-        weights = total_cost / scaled_costs
+        # Same as `weights = total_cost / scaled_costs` but avoids division by zero
+        # which results in an array with no `inf` values.
+        weights = np.true_divide(
+            total_cost,
+            scaled_costs,
+            out=np.zeros_like(scaled_costs), 
+            where=scaled_costs!=0,
+        )
 
         # for i in range(len(sampled_indices)):
         #     print(f"Sampled point {sampled_indices[i]:3}  cost={scaled_costs[i]:0.5}  gets weight={weights[i]:0.5}")
