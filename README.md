@@ -30,7 +30,13 @@ This projects relies on [pyenv](https://github.com/pyenv/pyenv) and [Poetry](htt
    poetry run python -m yace.run_worker -q data/queue --n-threads 1 --max-active 1
    ```
 
-5. Download experiments results from server
+5. Compute distortions
+
+   ```bash
+   poetry run python -m yace.calc_distortions -r data/experiments --n-jobs 1 --n-threads 1
+   ```
+
+6. Download experiments results from server
 
    ```bash
    rsync -av skadi:/home/omar/code/yace/data/experiments/ data/experiments-skadi
