@@ -7,7 +7,6 @@ def make_experiment_generation_registry():
     registry = dict()
     def wrapper(func):
         registry[func.__name__] = func
-        print(f"Registering function: {func.__name__}")
         return func
     wrapper.registry = registry
     return wrapper
