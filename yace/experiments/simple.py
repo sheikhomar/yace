@@ -14,6 +14,7 @@ from sklearn.preprocessing import normalize
 from sklearn.utils.extmath import row_norms
 
 from yace.coresets.sensitivity_sampling import SensitivitySampling
+from yace.coresets.uniform_sampling import UniformSampling
 from yace.data.synthetic import generate_simplex
 from yace.experiments import Experiment, ExperimentParams, make_experiment_generation_registry
 from yace.helpers.logger import get_logger
@@ -72,10 +73,16 @@ class SimpleInstanceExperiment(Experiment):
         self.set_random_seed()
         X = self.get_data_set()
 
-        if self._params.algorithm_name == "ss":
+        if self._params.algorithm_name in ["ss", "sensitivity", "sensitivity-sampling"]:
             logger.debug(f"Running Sensitivity Sampling to generate coreset...")
             algorithm = SensitivitySampling(
-                n_clusters=self._params.k,
+                n_clusters=2*self._params.k,
+                coreset_size=self._params.coreset_size,
+            )
+        elif self._params.algorithm_name in ["us", "uniform", "uniform-sampling"]:
+            logger.debug(f"Running Uniform Sampling to generate coreset...")
+            algorithm = UniformSampling(
+                n_clusters=2*self._params.k,
                 coreset_size=self._params.coreset_size,
             )
         else:
@@ -106,10 +113,12 @@ initialize_experiment = SimpleInstanceExperiment
 
 
 @experiment_generation
-def initial_ss_01() -> Generator[object, None, None]:
-    for k in [10, 20, 50, 70, 100]:
-        for epsilon in [0.20, 0.10, 0.05, 0.01]:
-            yield create_experiment_param(
-                k=k,
-                epsilon=epsilon,
-            )
+def ss_us_01() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.20, 0.10, 0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo
+                )
