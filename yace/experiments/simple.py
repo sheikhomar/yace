@@ -107,7 +107,7 @@ initialize_experiment = SimpleInstanceExperiment
 
 @experiment_generation
 def initial_ss_01() -> Generator[object, None, None]:
-    for k in [10, 20, 50, 70]:
+    for k in [10, 20, 50, 70, 100]:
         for epsilon in [0.20, 0.10, 0.05, 0.01]:
             yield create_experiment_param(
                 k=k,
