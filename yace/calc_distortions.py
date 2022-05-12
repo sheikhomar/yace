@@ -111,6 +111,7 @@ def find_completed_jobs(results_dir: str) -> List[JobInfo]:
 def calc_distortions(results_dir: str, n_jobs: int, n_threads: int) -> None:
     completed_jobs = find_completed_jobs(results_dir)
     total_files = len(completed_jobs)
+    logger.debug(f"Found {total_files} jobs to be processed...")
     Parallel(n_jobs=n_jobs)(
         delayed(calc_distortion_for_job)(
             index=index,
