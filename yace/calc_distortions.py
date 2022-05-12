@@ -23,35 +23,84 @@ from yace.experiments.simple import SimpleInstanceExperiment
 logger = get_logger("distort")
 
 
-def calc_distortions_on_solutions(solution_generator, solution_type: str, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, n_repetitions: int) -> pd.DataFrame:
-    results = []
-    for iter in range(n_repetitions):
-        solution = solution_generator()
+class DistortionCalculator:
+    def __init__(self,
+        working_dir: Path,
+        k: int,
+        input_points: np.ndarray,
+        coreset_points: np.ndarray,
+        coreset_weights: np.ndarray,
+        ) -> None:
+        self.working_dir = working_dir
+        self.input_points = input_points
+        self.coreset_points = coreset_points
+        self.coreset_weights = coreset_weights
+        self.k = k
+    
+    def calc_distortions(self, solution_generator, solution_type: str, n_repetitions: int) -> pd.DataFrame:
+        results = []
+        for iter in range(n_repetitions):
+            solution = solution_generator()
 
-        coreset_cost = yace_eval.compute_coreset_cost(
-            coreset_points=coreset_points,
-            coreset_weights=coreset_weights,
-            candidate_solution=solution,
-        )
+            coreset_cost = yace_eval.compute_coreset_cost(
+                coreset_points=self.coreset_points,
+                coreset_weights=self.coreset_weights,
+                candidate_solution=solution,
+            )
 
-        input_cost = yace_eval.compute_input_cost(
-            input_points=input_points,
-            candidate_solution=solution,
-        )
+            input_cost = yace_eval.compute_input_cost(
+                input_points=self.input_points,
+                candidate_solution=solution,
+            )
 
-        solution = None
-        del solution
+            solution = None
+            del solution
 
-        distortion = max(float(input_cost/coreset_cost), float(coreset_cost/input_cost))
+            distortion = max(float(input_cost/coreset_cost), float(coreset_cost/input_cost))
 
-        results.append(dict(
-            iteration=iter,
-            solution_type=solution_type,
-            coreset_cost=coreset_cost,
-            input_cost=input_cost,
-            distortion=distortion,
-        ))
-    return pd.DataFrame(results)
+            results.append(dict(
+                iteration=iter,
+                solution_type=solution_type,
+                coreset_cost=coreset_cost,
+                input_cost=input_cost,
+                distortion=distortion,
+            ))
+        return pd.DataFrame(results)
+
+    def on_random(self):
+        dist_random_path = self.working_dir/"distortions-random-solutions.feather"
+        if not dist_random_path.exists():
+            logger.debug("Calculating distortions on solutions generated uniformly at random")
+            n_dim = self.input_points.shape[1]
+            random_solution_generator = lambda: yace_eval.generate_random_solution(n_dim=n_dim, k=self.k)
+
+            df_dist_random = self.calc_distortions(
+                solution_generator=random_solution_generator,
+                solution_type="random",
+                n_repetitions=50,
+            )
+
+            logger.debug("Storing distortions")
+            df_dist_random.to_feather(dist_random_path)
+            df_dist_random.to_csv(str(dist_random_path).replace(".feather", ".csv"))
+
+    def on_convex(self):
+        dist_convex_path = self.working_dir/"distortions-convex-solutions.feather"
+        if not dist_convex_path.exists():
+            logger.debug("Calculating distortions on solutions by convex combinations of random points")
+
+            convex_solution_generator = lambda: yace_eval.generate_random_points_within_convex_hull(
+                data_matrix=self.input_points, k=self.k, n_samples=2,
+            )
+            df_dist_convex = self.calc_distortions(
+                solution_generator=convex_solution_generator,
+                solution_type="convex",
+                n_repetitions=50,
+            )
+
+            logger.debug("Storing distortions")
+            df_dist_convex.to_feather(dist_convex_path)
+            df_dist_convex.to_csv(str(dist_convex_path).replace(".feather", ".csv"))
 
 
 def calc_distortion_for_simple_instance(job_info: JobInfo):
@@ -61,31 +110,24 @@ def calc_distortion_for_simple_instance(job_info: JobInfo):
         working_dir=working_dir,
     )
 
+    k = experiment._params.k
     experiment.set_random_seed()
     input_points = experiment.get_data_set()
-    
+
     logger.debug("Loading coreset...")
     coreset_points = sp_sparse.load_npz(working_dir/"coreset-points.npz")
     coreset_weights = np.load(working_dir/"coreset-weights.npz", allow_pickle=True)["matrix"]
 
-    dist_random_path = working_dir/"distortions-random-solutions.feather"
-    if not dist_random_path.exists():
-        logger.debug("Calculating distortions on solutions generated uniformly at random")
-        n_dim = input_points.shape[1]
-        k = experiment._params.k
-        random_solution_generator = lambda: yace_eval.generate_random_solution(n_dim=n_dim, k=k)
+    calc = DistortionCalculator(
+        working_dir=working_dir,
+        k=k,
+        input_points=input_points,
+        coreset_points=coreset_points,
+        coreset_weights=coreset_weights,
+    )
 
-        df_dist_random = calc_distortions_on_solutions(
-            solution_generator=random_solution_generator,
-            solution_type="random",
-            input_points=input_points,
-            coreset_points=coreset_points,
-            coreset_weights=coreset_weights,
-            n_repetitions=50,
-        )
-
-        logger.debug("Storing distortions")
-        df_dist_random.to_feather(dist_random_path)
+    calc.on_random()
+    calc.on_convex()
 
 
 def calc_distortion_for_job(index: int, n_total: int, job_info: JobInfo, n_threads: int):
