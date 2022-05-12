@@ -23,11 +23,10 @@ from yace.experiments.simple import SimpleInstanceExperiment
 logger = get_logger("distort")
 
 
-def calc_distortion_on_random_solutions(k: int, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, n_repetitions: int) -> pd.DataFrame:
+def calc_distortions_on_solutions(solution_generator, solution_type: str, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, n_repetitions: int) -> pd.DataFrame:
     results = []
-    n_dim = input_points.shape[1]
     for iter in range(n_repetitions):
-        solution = yace_eval.generate_random_solution(n_dim=n_dim, k=k)
+        solution = solution_generator()
 
         coreset_cost = yace_eval.compute_coreset_cost(
             coreset_points=coreset_points,
@@ -47,7 +46,7 @@ def calc_distortion_on_random_solutions(k: int, input_points: np.ndarray, corese
 
         results.append(dict(
             iteration=iter,
-            solution_type="random",
+            solution_type=solution_type,
             coreset_cost=coreset_cost,
             input_cost=input_cost,
             distortion=distortion,
@@ -72,8 +71,13 @@ def calc_distortion_for_simple_instance(job_info: JobInfo):
     dist_random_path = working_dir/"distortions-random-solutions.feather"
     if not dist_random_path.exists():
         logger.debug("Calculating distortions on solutions generated uniformly at random")
-        df_dist_random = calc_distortion_on_random_solutions(
-            k=experiment._params.k,
+        n_dim = input_points.shape[1]
+        k = experiment._params.k
+        random_solution_generator = lambda: yace_eval.generate_random_solution(n_dim=n_dim, k=k)
+
+        df_dist_random = calc_distortions_on_solutions(
+            solution_generator=random_solution_generator,
+            solution_type="random",
             input_points=input_points,
             coreset_points=coreset_points,
             coreset_weights=coreset_weights,
