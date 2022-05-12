@@ -1,23 +1,14 @@
-from pathlib import Path
-
 import numpy as np
 import scipy.sparse as sp_sparse
 
-from numba import jit
-from scipy.sparse import issparse, csr_array, csr_matrix
-from sklearn.cluster import KMeans
-from sklearn.metrics import consensus_score
-from sklearn.utils.extmath import row_norms
-from sklearn.utils.validation import check_random_state
-from sklearn.metrics.pairwise import _euclidean_distances
+from scipy.sparse import issparse
 
-from yace.clustering.kmeans import kmeans_plusplus
+from yace.coresets.sampling import SamplingBasedAlgorithm
 
 
-class SensitivitySampling:
+class SensitivitySampling(SamplingBasedAlgorithm):
     def __init__(self, n_clusters: int, coreset_size: int) -> None:
-        self._n_clusters = n_clusters
-        self._coreset_size = coreset_size
+        super().__init__(n_clusters, coreset_size)
     
     def run(self, X):
         D = self._compute_kmeans_cluster_distances(X=X)
@@ -58,27 +49,6 @@ class SensitivitySampling:
         coreset_weights = np.concatenate([sampled_weights, center_weights])
 
         return coreset_points, coreset_weights
-
-    def _compute_kmeans_cluster_distances(self, X):
-        # Precompute squared norms of data points
-        x_squared_norms = row_norms(X, squared=True)
-        random_state = check_random_state(None)
-        center_indices = kmeans_plusplus(
-            X=X,
-            n_clusters=self._n_clusters,
-            random_state=random_state,
-            x_squared_norms=x_squared_norms,
-        )
-
-        D = _euclidean_distances(
-            X=X,
-            Y=X[center_indices],
-            X_norm_squared=x_squared_norms,
-            Y_norm_squared=x_squared_norms[center_indices],
-            squared=True
-        )
-
-        return D 
 
     def _sample_points_for_coreset(self, point_costs: np.ndarray):
         n_points = point_costs.shape[0]
