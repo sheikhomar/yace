@@ -33,6 +33,9 @@ class JobInfo:
                 return datetime.fromisoformat(date_str)
             return None
 
+        if not os.path.exists(job_info_path):
+            return None
+
         with open(job_info_path, "r") as f:
             content = json.load(f)
             obj = cls()
