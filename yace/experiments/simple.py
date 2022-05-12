@@ -5,6 +5,7 @@ from typing import Dict, List, Generator
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp_sparse
 
 from dacite import from_dict
 from sklearn.metrics.pairwise import _euclidean_distances
@@ -63,98 +64,41 @@ class SimpleInstanceExperiment(Experiment):
             data_class=SimpleInstanceExperimentParams, 
             data=experiment_params
         )
-        self._working_dir = working_dir
+        self._working_dir = Path(working_dir)
 
     def run(self) -> None:
         logger.debug(f"Running SimpleInstanceExperiment with params: \n{self._params}")
 
-        np.random.default_rng(self._params.random_seed)
-        np.random.seed(self._params.random_seed)
-
-        output_dir = Path(self._working_dir)
-    
-        logger.debug("Generating data")
-        X = generate_simplex(d=self._params.n_points, alpha=1)
-
-        logger.debug(f"The shape of the generated data matrix is: {X.shape}")
-
-        logger.debug(f"Running {self._params.algorithm_name}...")
+        self.set_random_seed()
+        X = self.get_data_set()
 
         if self._params.algorithm_name == "ss":
+            logger.debug(f"Running Sensitivity Sampling to generate coreset...")
             algorithm = SensitivitySampling(
                 n_clusters=self._params.k,
                 coreset_size=self._params.coreset_size,
             )
-            coreset_points, coreset_weights = algorithm.run(X)
-            np.savez_compressed(output_dir/"coreset-points.npz", matrix=coreset_points)
-            np.savez_compressed(output_dir/"coreset-weights.npz", matrix=coreset_weights)
+        else:
+            raise ValueError(f"Unknown algorithm: {self._params.algorithm_name}")
 
-            df_distortions = self._evaluate_random_solutions(
-                input_points=X,
-                coreset_points=coreset_points,
-                coreset_weights=coreset_weights,
-                n_repetitions=50,
-            )
-            df_distortions.to_feather(output_dir/"distortions.feather")
+        coreset_points, coreset_weights = algorithm.run(X)
+        sp_sparse.save_npz(self._working_dir/"coreset-points.npz", matrix=coreset_points, compressed=True)
+        np.savez_compressed(self._working_dir/"coreset-weights.npz", matrix=coreset_weights)
 
-        with open(output_dir / "done.out", "w") as f:
+        with open(self._working_dir / "done.out", "w") as f:
             f.write("done")
         logger.debug("Done")
 
-    def _evaluate_random_solutions(self, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, n_repetitions: int) -> pd.DataFrame:
-        logger.debug("Evaluating solution...")
+    def set_random_seed(self):
+        np.random.default_rng(self._params.random_seed)
+        np.random.seed(self._params.random_seed)
 
-        n_dim = input_points.shape[1]
-        k = self._params.k
+    def get_data_set(self):
+        logger.debug("Generating data")
+        X = generate_simplex(d=self._params.n_points, alpha=1)
+        logger.debug(f"The shape of the generated data matrix is: {X.shape}")
+        return X
 
-        results = []
-        for iter in range(n_repetitions):
-            logger.debug(f"Solution {iter}")
-            # Generate a solution that consists of a set of k d-dimensional vectors
-            solution = np.random.normal(loc=0, scale=1, size=(k, n_dim))
-
-            # Normalize the solution
-            solution = normalize(solution)
-
-            coreset_cost = self._compute_coreset_cost(
-                coreset_points=coreset_points,
-                coreset_weights=coreset_weights,
-                candidate_solution=solution,
-            )
-
-            input_cost = self._compute_input_cost(
-                input_points=input_points,
-                candidate_solution=solution,
-            )
-
-            del solution
-
-            distortion = max(float(input_cost/coreset_cost), float(coreset_cost/input_cost))
-
-            results.append(dict(
-                coreset_cost=coreset_cost,
-                input_cost=input_cost,
-                distortion=distortion,
-            ))
-
-        return pd.DataFrame(results)
-
-    def _compute_coreset_cost(self, coreset_points: np.ndarray, coreset_weights: np.ndarray, candidate_solution: np.ndarray):
-        # Distances between all corset points and candidate solution points
-        dist_sq = _euclidean_distances(X=coreset_points, Y=candidate_solution, squared=True)
-
-        # For each point (w, p) in S, find the distance to its closest center
-        closest_dist_sq = np.min(dist_sq, axis=1)
-
-        coreset_cost = np.sum(coreset_weights * closest_dist_sq)
-        return coreset_cost
-
-    def _compute_input_cost(self, input_points: np.ndarray, candidate_solution: np.ndarray) -> float:
-        dist_sq = _euclidean_distances(X=input_points, Y=candidate_solution, squared=True)
-        closest_dist_sq = np.min(dist_sq, axis=1)
-        input_cost = np.sum(closest_dist_sq)
-        return input_cost
-       
 
 experiment_generation = make_experiment_generation_registry()
 
