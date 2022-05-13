@@ -19,6 +19,7 @@ from yace.helpers.logger import get_logger
 from yace.run_worker import JobInfo
 from yace.experiments.simple import SimpleInstanceExperiment
 from yace.experiments.adv import AdvInstanceExperiment
+from yace.experiments.rw import RealWorldDataExperiment
 
 
 logger = get_logger("distort")
@@ -121,6 +122,22 @@ class DistortionCalculator:
             df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
 
+    def on_kmeans_plus_plus(self):
+        output_path = self.working_dir/f"distortions-kmeansplusplus-solutions.feather"
+        if not output_path.exists():
+            solution_generator = lambda: yace_eval.generate_candidate_solution_via_kmeans_plus_plus(
+                data_matrix=self.coreset_points, k=self.k,
+            )
+            df_distortions = self.calc_distortions(
+                solution_generator=solution_generator,
+                solution_type="kmeansplusplus",
+                n_repetitions=20,
+            )
+            logger.debug(f"Storing distortions to {output_path}")
+            df_distortions.to_feather(output_path)
+            df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
+
+
 def calc_distortion_for_simple_instance(job_info: JobInfo):
     working_dir = job_info.working_dir
     experiment = SimpleInstanceExperiment(
@@ -176,6 +193,31 @@ def calc_distortion_for_adv_instance(job_info: JobInfo):
     calc.on_adv(ratio=2/3)
 
 
+def calc_distortion_for_real_world_data_sets(job_info: JobInfo):
+    working_dir = job_info.working_dir
+    experiment = RealWorldDataExperiment(
+        experiment_params=job_info.experiment_params,
+        working_dir=working_dir,
+    )
+
+    k = experiment._params.k
+    experiment.set_random_seed()
+    input_points = experiment.get_data_set()
+    
+    logger.debug("Loading coreset...")
+    coreset_points = np.load(working_dir/"coreset-points.npz", allow_pickle=True)["matrix"]
+    coreset_weights = np.load(working_dir/"coreset-weights.npz", allow_pickle=True)["matrix"]
+    
+    calc = DistortionCalculator(
+        working_dir=working_dir,
+        k=k,
+        input_points=input_points,
+        coreset_points=coreset_points,
+        coreset_weights=coreset_weights,
+    )
+    calc.on_kmeans_plus_plus()
+
+
 def calc_distortion_for_job(index: int, n_total: int, job_info: JobInfo, n_threads: int):
     experiment_dir = job_info.working_dir
     experiment_type = job_info.command_params["experiment-type"]
@@ -187,6 +229,8 @@ def calc_distortion_for_job(index: int, n_total: int, job_info: JobInfo, n_threa
             calc_distortion_for_simple_instance(job_info)
         elif experiment_type == "adv":
             calc_distortion_for_adv_instance(job_info)
+        elif experiment_type == "rw":
+            calc_distortion_for_real_world_data_sets(job_info)
         else:
             logger.debug(f"[{index+1}/{n_total}]: Skipping! {experiment_type} is unknown - for  {experiment_dir}")
         

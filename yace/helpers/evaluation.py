@@ -5,6 +5,8 @@ from sklearn.metrics.pairwise import _euclidean_distances
 from sklearn.preprocessing import normalize
 from sklearn.utils.extmath import safe_sparse_dot
 
+from yace.clustering.kmeans import kmeans_plusplus
+
 
 def compute_coreset_cost(coreset_points: np.ndarray, coreset_weights: np.ndarray, candidate_solution: np.ndarray):
     dist_sq = _euclidean_distances(X=coreset_points, Y=candidate_solution, squared=True)
@@ -66,6 +68,7 @@ def generate_random_points_within_convex_hull(data_matrix: np.ndarray, k: int, n
 
     return generated_points
 
+
 def generate_candidate_solution_for_adv_instance(data_matrix: np.ndarray, k: int, sample_size: int):
     n_points, n_dim = data_matrix.shape
     sampled_indices = np.random.choice(a=n_points, size=sample_size)
@@ -89,4 +92,10 @@ def generate_candidate_solution_for_adv_instance(data_matrix: np.ndarray, k: int
     generated_points = generated_points / lambdas[:,None]
 
     solution = np.vstack([sampled_points, generated_points])
+    return solution
+
+
+def generate_candidate_solution_via_kmeans_plus_plus(data_matrix: np.ndarray, k: int):
+    center_indices = kmeans_plusplus(X=data_matrix, n_clusters=k)
+    solution = data_matrix[center_indices]
     return solution
