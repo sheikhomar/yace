@@ -148,3 +148,4 @@ cython_debug/
 notebooks/dask-worker-space/*
 data/experiments*
 data/queue
+data/input
