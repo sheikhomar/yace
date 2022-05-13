@@ -122,7 +122,7 @@ def covertype_01() -> Generator[object, None, None]:
     for algo in ["sensitivity-sampling", "uniform-sampling"]:
         for k in [10, 20, 30, 40, 50]:
             yield create_experiment_param(
-                data_set="census",
+                data_set="covertype",
                 k=k,
                 coreset_size=200*k,
                 algorithm_name=algo,
