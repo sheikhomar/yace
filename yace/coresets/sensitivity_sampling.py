@@ -14,9 +14,7 @@ class SensitivitySampling(SamplingBasedAlgorithm):
         # Compute squared Euclidean distances between the input points 
         # and points in the initial solution K: 
         #   D_{i,j} = ||p_i - K_j||^2_2
-        D = self._compute_kmeans_cluster_distances(X=A)
-
-        print(f"Distance matrix shape: {D.shape}")
+        D = self._compute_initial_solution_via_kmeans_plus_plus(A=A)
 
         cluster_labels = np.argmin(D, axis=1)
 

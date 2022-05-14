@@ -10,8 +10,8 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
     def __init__(self, n_clusters: int, coreset_size: int) -> None:
         super().__init__(n_clusters, coreset_size)
     
-    def run(self, X):
-        D = self._compute_kmeans_cluster_distances(X=X)
+    def run(self, A):
+        D = self._compute_initial_solution_via_kmeans_plus_plus(A=A)
         
         cluster_labels = np.argmin(D, axis=1)
         point_costs = np.min(D, axis=1)
