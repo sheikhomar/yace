@@ -10,10 +10,18 @@ class SensitivitySampling(SamplingBasedAlgorithm):
     def __init__(self, n_clusters: int, coreset_size: int) -> None:
         super().__init__(n_clusters, coreset_size)
     
-    def run(self, X):
-        D = self._compute_kmeans_cluster_distances(X=X)
+    def run(self, A):
+        # Compute squared Euclidean distances between the input points 
+        # and points in the initial solution K: 
+        #   D_{i,j} = ||p_i - K_j||^2_2
+        D = self._compute_kmeans_cluster_distances(X=A)
+
+        print(f"Distance matrix shape: {D.shape}")
 
         cluster_labels = np.argmin(D, axis=1)
+
+        # For each input point p in A compute:
+        #  cost(p, K) = min_{k in K} ||p-k||^2
         point_costs = np.min(D, axis=1)
 
         sampled_indices, sampled_weights = self._sample_points_for_coreset(point_costs=point_costs)
@@ -25,22 +33,22 @@ class SensitivitySampling(SamplingBasedAlgorithm):
         )
 
         # First add sampled points to the coreset
-        coreset_points = [X[sampled_indices]]
+        coreset_points = [A[sampled_indices]]
 
         # Then add k-means++ cluster centers to the coreset
         for c in range(self._n_clusters):
-            cluster_members = X[cluster_labels == c]
+            cluster_members = A[cluster_labels == c]
 
             # Compute the mean of the clusters
             centroid = cluster_members.mean(axis = 0)
 
-            if issparse(X):
+            if issparse(A):
                 centroid = sp_sparse.csr_array(centroid)
 
             coreset_points.append(centroid)
 
         # Combine coreset points
-        if issparse(X):
+        if issparse(A):
             coreset_points = sp_sparse.vstack(coreset_points, format="csr")
         else:
             coreset_points = np.vstack(coreset_points)
@@ -53,18 +61,19 @@ class SensitivitySampling(SamplingBasedAlgorithm):
     def _sample_points_for_coreset(self, point_costs: np.ndarray):
         n_points = point_costs.shape[0]
 
-        # Compute total cost: cost_A(C) = sum_{p in A} cost_A(p, C)
+        # Compute the total cost: cost_A(K) = sum_{p in A} cost_A(p, K)
+        # where K is the initial solution obtained by running k-means++.
         total_cost = np.sum(point_costs)
 
-        # Compute the sampling distribution: cost_A(p, C) / cost_A(C)
+        # Compute the sampling distribution: cost_A(p, K) / cost_A(K)
         sampling_distribution = point_costs / total_cost
 
         sampled_indices = np.random.choice(a=n_points, size=self._coreset_size, replace=True, p=sampling_distribution)
 
-        # We scale the cost of the sampled point by a factor of T i.e. T * cost_A(p, C)
+        # We scale the cost of the sampled point by a factor of T i.e. T * cost_A(p, K)
         scaled_costs = self._coreset_size * point_costs[sampled_indices]
 
-        # The weight of the sampled point is now: cost_A(C) / (T * cost_A(p, C))
+        # The weight of the sampled point is now: cost_A(K) / (T * cost_A(p, K))
         # Same as `weights = total_cost / scaled_costs` but avoids division by zero
         # which results in an array with no `inf` values.
         weights = np.true_divide(
