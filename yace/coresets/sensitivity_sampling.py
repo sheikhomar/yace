@@ -53,20 +53,18 @@ class SensitivitySampling(SamplingBasedAlgorithm):
     def _sample_points_for_coreset(self, point_costs: np.ndarray):
         n_points = point_costs.shape[0]
 
-        # Compute cost(X)
+        # Compute total cost: cost_A(C) = sum_{p in A} cost_A(p, C)
         total_cost = np.sum(point_costs)
 
-        # print(f"Total cost: {total_cost}")
-
-        # Compute the sampling distribution: cost(p, X)/cost(X)
+        # Compute the sampling distribution: cost_A(p, C) / cost_A(C)
         sampling_distribution = point_costs / total_cost
 
         sampled_indices = np.random.choice(a=n_points, size=self._coreset_size, replace=True, p=sampling_distribution)
 
-        # We scale the cost of the sampled point by a factor of T i.e. T * cost(p, X)
+        # We scale the cost of the sampled point by a factor of T i.e. T * cost_A(p, C)
         scaled_costs = self._coreset_size * point_costs[sampled_indices]
 
-        # The weight of the sampled point is now: cost(A) / (T*cost(p,X))
+        # The weight of the sampled point is now: cost_A(C) / (T * cost_A(p, C))
         # Same as `weights = total_cost / scaled_costs` but avoids division by zero
         # which results in an array with no `inf` values.
         weights = np.true_divide(
