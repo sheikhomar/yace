@@ -122,7 +122,7 @@ class DistortionCalculator:
             df_distortions.to_feather(output_path)
             df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
-    def on_kmeans_plus_plus(self):
+    def on_kmeans_plus_plus_input(self):
         solution_type = "kmeans++-on-input"
         output_path = self.working_dir/f"distortions-{solution_type}-solutions.feather"
         if not output_path.exists():
@@ -261,7 +261,7 @@ def calc_distortion_for_real_world_data_sets(job_info: JobInfo):
         coreset_points=coreset_points,
         coreset_weights=coreset_weights,
     )
-    calc.on_kmeans_plus_plus()
+
     calc.on_kmeans_plus_plus_coreset()
 
 
