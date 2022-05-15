@@ -123,16 +123,29 @@ class DistortionCalculator:
 
 
     def on_kmeans_plus_plus(self):
-        output_path = self.working_dir/f"distortions-kmeansplusplus-solutions.feather"
+        solution_type = "kmeans++-on-input"
+        output_path = self.working_dir/f"distortions-{solution_type}-solutions.feather"
         if not output_path.exists():
             solution_generator = lambda: yace_eval.generate_candidate_solution_via_kmeans_plus_plus(
-                data_matrix=self.coreset_points, k=self.k,
+                data_matrix=self.input_points, k=self.k,
             )
-            df_distortions = self.calc_distortions(
-                solution_generator=solution_generator,
-                solution_type="kmeansplusplus",
-                n_repetitions=20,
-            )
+
+            distortions_list = []
+            for i in range(2):
+                df_local_distortions = self.calc_distortions(
+                    solution_generator=solution_generator,
+                    solution_type=solution_type,
+                    n_repetitions=5,
+                )
+                max_distortion_idx = df_local_distortions['distortion'].idxmax()
+                max_distortion_row = df_local_distortions.iloc[max_distortion_idx].copy()
+                distortions_list.append(max_distortion_row.to_dict())
+
+            df_distortions = pd.DataFrame(distortions_list)
+
+            # Reset iteration column
+            df_distortions["iteration"] = np.arange(len(distortions_list))
+            
             logger.debug(f"Storing distortions to {output_path}")
             df_distortions.to_feather(output_path)
             df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
