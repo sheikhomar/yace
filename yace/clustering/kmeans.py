@@ -99,8 +99,10 @@ def kmeans_plusplus(X, n_clusters, x_squared_norms=None, random_state=None, n_lo
 def squared_distance(p1, p2):
     n_dim = p1.shape[0]
     distance = 0.0
+    diff = 0.0
     for d in range(n_dim):
-        distance += (p1[d] - p2[d])**2
+        diff = p1[d] - p2[d]
+        distance += diff * diff
     return distance
 
 
