@@ -107,6 +107,27 @@ def squared_distance(p1, p2):
 
 
 @jit(nopython=True, fastmath=True)
+def weighted_random_choice_v1(weights):
+    sum_of_weights = np.sum(weights)
+    random_number = np.random.uniform(0.0, sum_of_weights)
+    picked_index = 0
+    running_sum = weights[0]
+    while random_number >= running_sum:
+        picked_index += 1
+        running_sum += weights[picked_index]
+    return picked_index
+
+
+@jit(nopython=True, fastmath=True)
+def weighted_random_choice_v2(weights):
+    # Based on https://stackoverflow.com/questions/25507558/how-do-i-randomly-select-numbers-with-a-specified-bias-toward-a-particular-num
+    running_sum = np.cumsum(weights)
+    random_number = np.random.uniform(0.0, running_sum[-1])
+    picked_index = np.searchsorted(running_sum, random_number, side="left")
+    return picked_index
+
+
+@jit(nopython=True, fastmath=True)
 def kmeans_plusplus_with_weights(points: np.ndarray, n_clusters: int, weights: np.ndarray):
     n_points = points.shape[0]
 
