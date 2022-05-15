@@ -21,7 +21,7 @@ class SensitivitySampling(SamplingBasedAlgorithm):
         #   D_{i,j} = ||p_i - K_j||^2_2
         D = self._compute_initial_solution_via_kmeans_plus_plus(A=A)
 
-        sampled_indices, sampled_weights = self._non_uniform_sample_points_for_coreset(sq_pairwise_distances=D)
+        sampled_indices, sampled_weights = self._non_uniform_sample_points_for_coreset_biased_v1(sq_pairwise_distances=D)
 
         # First add sampled points to the coreset
         coreset_points = A[sampled_indices]
