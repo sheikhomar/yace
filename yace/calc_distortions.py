@@ -12,6 +12,7 @@ import scipy.sparse as sp_sparse
 
 from joblib import Parallel, delayed
 from threadpoolctl import threadpool_limits
+from yace.clustering.kmeans import kmeans_plusplus_with_weights
 
 import yace.helpers.evaluation as yace_eval
 
@@ -121,7 +122,6 @@ class DistortionCalculator:
             df_distortions.to_feather(output_path)
             df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
-
     def on_kmeans_plus_plus(self):
         solution_type = "kmeans++-on-input"
         output_path = self.working_dir/f"distortions-{solution_type}-solutions.feather"
@@ -129,6 +129,39 @@ class DistortionCalculator:
             solution_generator = lambda: yace_eval.generate_candidate_solution_via_kmeans_plus_plus(
                 data_matrix=self.input_points, k=self.k,
             )
+
+            distortions_list = []
+            for i in range(2):
+                df_local_distortions = self.calc_distortions(
+                    solution_generator=solution_generator,
+                    solution_type=solution_type,
+                    n_repetitions=5,
+                )
+                max_distortion_idx = df_local_distortions['distortion'].idxmax()
+                max_distortion_row = df_local_distortions.iloc[max_distortion_idx].copy()
+                distortions_list.append(max_distortion_row.to_dict())
+
+            df_distortions = pd.DataFrame(distortions_list)
+
+            # Reset iteration column
+            df_distortions["iteration"] = np.arange(len(distortions_list))
+            
+            logger.debug(f"Storing distortions to {output_path}")
+            df_distortions.to_feather(output_path)
+            df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
+
+    def on_kmeans_plus_plus_coreset(self):
+        solution_type = "kmeans++-on-coreset"
+        output_path = self.working_dir/f"distortions-{solution_type}-solutions.feather"
+        if not output_path.exists():
+            def solution_generator():
+                center_indices = kmeans_plusplus_with_weights(
+                    points=self.coreset_points, 
+                    weights=self.coreset_weights,
+                    n_clusters=self.k,
+                )
+                solution = self.input_points[center_indices]
+                return solution
 
             distortions_list = []
             for i in range(2):
@@ -229,6 +262,7 @@ def calc_distortion_for_real_world_data_sets(job_info: JobInfo):
         coreset_weights=coreset_weights,
     )
     calc.on_kmeans_plus_plus()
+    calc.on_kmeans_plus_plus_coreset()
 
 
 def calc_distortion_for_job(index: int, n_total: int, job_info: JobInfo, n_threads: int):
