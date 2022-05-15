@@ -93,3 +93,59 @@ def kmeans_plusplus(X, n_clusters, x_squared_norms=None, random_state=None, n_lo
         center_indices[c] = best_candidate
 
     return center_indices
+
+
+@jit(nopython=True, fastmath=True)
+def squared_distance(p1, p2):
+    n_dim = p1.shape[0]
+    distance = 0.0
+    for d in range(n_dim):
+        distance += (p1[d] - p2[d])**2
+    return distance
+
+
+@jit(nopython=True, fastmath=True)
+def kmeans_plusplus_with_weights(points: np.ndarray, n_clusters: int, weights: np.ndarray):
+    n_points = points.shape[0]
+
+    if weights is None:
+        weights = np.ones(n_points)
+
+    center_indices = [-1 for _ in range(n_clusters)]
+
+    # Pick first point uniformly at random
+    center_indices[0] = np.random.choice(n_points)
+
+    distances = np.zeros(shape=n_points)
+
+    # Pick the remaining n_clusters-1 points
+    for i in range(0, n_clusters-1):
+        closest_dist_sum = 0.0
+        for j in range(n_points):
+            # Compute distance between the input point j and center point i
+            new_distance = weights[j] * squared_distance(points[j], points[center_indices[i]])
+            if i == 0:
+                # This is the first center point so store the distance
+                distances[j] = new_distance
+            else:
+                # Determine if the distance between input point j is closer to
+                # the current center point i than any of the previous center points.
+                prev_smallest_distance = distances[j]
+                distances[j] = np.minimum(prev_smallest_distance, new_distance)
+            
+            # Keep a running sum of distances
+            closest_dist_sum += distances[j]
+
+        # Uniform sample a number from [0, closest_dist_sum)
+        random_number = closest_dist_sum * np.random.random_sample()
+
+        # Pick the next candidate
+        candidate_index = 0
+        current_sum = distances[0]
+        while random_number >= current_sum:
+            candidate_index += 1
+            current_sum += distances[candidate_index]
+
+        center_indices[i+1] = candidate_index
+
+    return center_indices
