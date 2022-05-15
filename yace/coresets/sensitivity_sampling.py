@@ -50,11 +50,8 @@ class SensitivitySampling(SamplingBasedAlgorithm):
         # Sample T points using the computed sampling distribution
         sampled_indices = np.random.choice(a=n_points, size=self._coreset_size, replace=True, p=sampling_distribution)
 
-        # Compute the weights as 1 / sampling_distribution
-        # sampled_proba = sampling_distribution[sampled_indices]
-        # sampled_proba = sampled_proba / np.sum(sampled_proba)
-        # weights = 1 / sampled_proba
-        weights = np.sum(point_costs[sampled_indices]) / point_costs[sampled_indices]
+        # Compute the weights
+        weights = total_cost / (self._coreset_size * point_costs[sampled_indices])
 
         print(f"N={n_points}    T={self._coreset_size}    Sum of weights={weights.sum():0.0f}")
 
