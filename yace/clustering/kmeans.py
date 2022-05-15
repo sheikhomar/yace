@@ -139,7 +139,9 @@ def kmeans_plusplus_with_weights(points: np.ndarray, n_clusters: int, weights: n
     # Pick first point uniformly at random
     center_indices[0] = np.random.choice(n_points)
 
-    distances = np.zeros(shape=n_points)
+    # An array to keep track of closest distances between
+    # each input point and selected set of centers.
+    closest_distances = np.zeros(shape=n_points)
 
     # Pick the remaining n_clusters-1 points
     for i in range(0, n_clusters-1):
@@ -149,25 +151,25 @@ def kmeans_plusplus_with_weights(points: np.ndarray, n_clusters: int, weights: n
             new_distance = weights[j] * squared_distance(points[j], points[center_indices[i]])
             if i == 0:
                 # This is the first center point so store the distance
-                distances[j] = new_distance
+                closest_distances[j] = new_distance
             else:
                 # Determine if the distance between input point j is closer to
                 # the current center point i than any of the previous center points.
-                prev_smallest_distance = distances[j]
-                distances[j] = np.minimum(prev_smallest_distance, new_distance)
+                prev_smallest_distance = closest_distances[j]
+                closest_distances[j] = np.minimum(prev_smallest_distance, new_distance)
             
             # Keep a running sum of distances
-            closest_dist_sum += distances[j]
+            closest_dist_sum += closest_distances[j]
 
         # Uniform sample a number from [0, closest_dist_sum)
-        random_number = closest_dist_sum * np.random.random_sample()
+        random_number = np.random.uniform(0.0, closest_dist_sum)
 
         # Pick the next candidate
         candidate_index = 0
-        current_sum = distances[0]
+        current_sum = closest_distances[0]
         while random_number >= current_sum:
             candidate_index += 1
-            current_sum += distances[candidate_index]
+            current_sum += closest_distances[candidate_index]
 
         center_indices[i+1] = candidate_index
 
