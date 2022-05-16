@@ -8,6 +8,7 @@ import numpy as np
 from dacite import from_dict
 
 from yace.coresets.sensitivity_sampling import SensitivitySampling
+from yace.coresets.sensitivity_sampling_ex import SensitivitySamplingExtended
 from yace.coresets.uniform_sampling import UniformSampling
 from yace.experiments import Experiment, ExperimentParams, make_experiment_generation_registry
 from yace.helpers.logger import get_logger
@@ -67,6 +68,12 @@ class RealWorldDataExperiment(Experiment):
         if self._params.algorithm_name in ["ss", "sensitivity", "sensitivity-sampling"]:
             logger.debug(f"Running Sensitivity Sampling to generate coreset...")
             algorithm = SensitivitySampling(
+                n_clusters=2*self._params.k,
+                coreset_size=self._params.coreset_size,
+            )
+        elif self._params.algorithm_name in ["ssx", "sensitivity-sampling-ex"]:
+            logger.debug(f"Running Sensitivity Sampling Extended to generate coreset...")
+            algorithm = SensitivitySamplingExtended(
                 n_clusters=2*self._params.k,
                 coreset_size=self._params.coreset_size,
             )
@@ -140,3 +147,39 @@ def tower_01() -> Generator[object, None, None]:
                 algorithm_name=algo,
             )
 
+
+@experiment_generation
+def census_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 30, 40, 50]:
+            yield create_experiment_param(
+                data_set="census",
+                k=k,
+                coreset_size=100*k,
+                algorithm_name=algo,
+            )
+
+
+
+@experiment_generation
+def covertype_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 30, 40, 50]:
+            yield create_experiment_param(
+                data_set="covertype",
+                k=k,
+                coreset_size=100*k,
+                algorithm_name=algo,
+            )
+
+
+@experiment_generation
+def tower_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [20, 40, 60, 80, 100]:
+            yield create_experiment_param(
+                data_set="tower",
+                k=k,
+                coreset_size=100*k,
+                algorithm_name=algo,
+            )
