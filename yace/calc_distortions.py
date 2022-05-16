@@ -263,6 +263,7 @@ def calc_distortion_for_real_world_data_sets(job_info: JobInfo):
     )
 
     calc.on_kmeans_plus_plus_coreset()
+    calc.on_kmeans_plus_plus_input()
 
 
 def calc_distortion_for_job(index: int, n_total: int, job_info: JobInfo, n_threads: int):
