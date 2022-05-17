@@ -188,3 +188,17 @@ def ssx_us_01() -> Generator[object, None, None]:
                     algorithm_name=algo,
                     coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
                 )
+
+
+@experiment_generation
+def ss_us_alpha_01() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.20, 0.10, 0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                    alpha=np.power(epsilon, -1),
+                )
