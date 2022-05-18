@@ -154,31 +154,37 @@ class DistortionCalculator:
         solution_type = "kmeans++-on-coreset"
         output_path = self.working_dir/f"distortions-{solution_type}-solutions.feather"
         if not output_path.exists():
+
             def solution_generator():
-                center_indices = kmeans_plusplus_with_weights(
-                    points=self.coreset_points, 
-                    weights=self.coreset_weights,
-                    n_clusters=self.k,
-                )
-                solution = self.input_points[center_indices]
-                return solution
+                # Best solution is the solution with lowest cost over
+                # 5 runs of k-means++ on weighted coreset points.
+                best_solution = None
+                best_cost = None
+                for iteration in range(5):
+                    center_indices = kmeans_plusplus_with_weights(
+                        points=self.coreset_points, 
+                        weights=self.coreset_weights,
+                        n_clusters=self.k,
+                    )
+                    solution = self.coreset_points[center_indices]
 
-            distortions_list = []
-            for i in range(2):
-                df_local_distortions = self.calc_distortions(
-                    solution_generator=solution_generator,
-                    solution_type=solution_type,
-                    n_repetitions=5,
-                )
-                max_distortion_idx = df_local_distortions['distortion'].idxmax()
-                max_distortion_row = df_local_distortions.iloc[max_distortion_idx].copy()
-                distortions_list.append(max_distortion_row.to_dict())
+                    cost = yace_eval.compute_coreset_cost(
+                        coreset_points=self.coreset_points,
+                        coreset_weights=self.coreset_weights,
+                        candidate_solution=solution,
+                    )
 
-            df_distortions = pd.DataFrame(distortions_list)
+                    if best_cost is None or cost < best_cost:
+                        best_cost = cost
+                        best_solution = solution
+                return best_solution
 
-            # Reset iteration column
-            df_distortions["iteration"] = np.arange(len(distortions_list))
-            
+            df_distortions = self.calc_distortions(
+                solution_generator=solution_generator,
+                solution_type=solution_type,
+                n_repetitions=1,
+            )
+
             logger.debug(f"Storing distortions to {output_path}")
             df_distortions.to_feather(output_path)
             df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
