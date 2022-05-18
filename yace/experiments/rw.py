@@ -183,3 +183,16 @@ def tower_02() -> Generator[object, None, None]:
                 coreset_size=100*k,
                 algorithm_name=algo,
             )
+
+
+@experiment_generation
+def all_take_01() -> Generator[object, None, None]:
+    for data_set in ["census", "covertype", "tower"]:
+        for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+            for k in [10, 20, 30, 40, 50]:
+                yield create_experiment_param(
+                    data_set=data_set,
+                    k=k,
+                    coreset_size=200*k,
+                    algorithm_name=algo,
+                )
