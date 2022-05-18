@@ -51,7 +51,7 @@ class SensitivitySamplingExtended(SamplingBasedAlgorithm):
         sampled_indices = np.random.choice(a=n_points, size=self._coreset_size, replace=True, p=sampling_proba)
 
         # The weights of the sampled points are 1/sens(p) * 1/T
-        weights = 1 / (self._coreset_size, sensitivities[sampled_indices])
+        weights = 1 / (self._coreset_size * sensitivities[sampled_indices])
 
         # Ensure that the sum of weights is equal to the number of points.
         weight_deviation = (n_points - weights.sum()) / self._coreset_size
