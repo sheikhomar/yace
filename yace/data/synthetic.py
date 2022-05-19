@@ -15,12 +15,12 @@ def generate_adv_instance(simplex_size: int, alpha: float, n_points_per_simplex:
     n_dim = simplex_size
     simplexes = np.eye(simplex_size) * alpha
     cov = np.eye(simplex_size) * (simplex_points_variance / np.sqrt(n_dim))
+    random_generator = np.random.default_rng(seed=42)
     raw_data = [
-        np.random.multivariate_normal(
+        random_generator.multivariate_normal(
             mean=simplexes[m],
             size=n_points_per_simplex,
             cov=cov,
-            random_state=42,
         )
         for m in range(simplex_size)
     ]
