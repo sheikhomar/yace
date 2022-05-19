@@ -20,6 +20,7 @@ def generate_adv_instance(simplex_size: int, alpha: float, n_points_per_simplex:
             mean=simplexes[m],
             size=n_points_per_simplex,
             cov=cov,
+            random_state=42,
         )
         for m in range(simplex_size)
     ]
