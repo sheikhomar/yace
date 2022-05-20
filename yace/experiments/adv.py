@@ -15,6 +15,7 @@ from yace.coresets.uniform_sampling import UniformSampling
 from yace.data.synthetic import generate_adv_instance
 from yace.experiments import Experiment, ExperimentParams, make_experiment_generation_registry
 from yace.helpers.logger import get_logger
+from yace.calc_distortions import calc_distortion_for_adv_instance
 
 
 @dataclasses.dataclass
@@ -122,7 +123,16 @@ class AdvInstanceExperiment(Experiment):
 
         with open(self._working_dir / "done.out", "w") as f:
             f.write("done")
-        logger.debug("Done")
+
+        logger.debug("Coreset constructed. Computing distortion...")
+        calc_distortion_for_adv_instance(
+            working_dir=self._working_dir,
+            k=self._params.k,
+            input_points=X,
+            coreset_points=coreset_points,
+            coreset_weights=coreset_weights,
+        )
+        logger.debug("Done.")
 
     def set_random_seed(self) -> np.random.Generator:
         np.random.seed(self._params.random_seed)
@@ -321,6 +331,34 @@ def full_unadjusted_01() -> Generator[object, None, None]:
     for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
         for k in [10, 20, 50, 70, 100]:
             for epsilon in [0.20, 0.10, 0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    adjust_weights=False,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                )
+
+
+@experiment_generation
+def full_adjusted_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.20, 0.10]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    adjust_weights=True,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                )
+
+
+@experiment_generation
+def full_unadjusted_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.20, 0.10]:
                 yield create_experiment_param(
                     k=k,
                     epsilon=epsilon,

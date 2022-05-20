@@ -219,21 +219,7 @@ def calc_distortion_for_simple_instance(job_info: JobInfo):
     calc.on_convex()
 
 
-def calc_distortion_for_adv_instance(job_info: JobInfo):
-    working_dir = job_info.working_dir
-    experiment = AdvInstanceExperiment(
-        experiment_params=job_info.experiment_params,
-        working_dir=working_dir,
-    )
-
-    k = experiment._params.k
-    rng = experiment.set_random_seed()
-    input_points = experiment.get_data_set()
-    
-    logger.debug("Loading coreset...")
-    coreset_points = np.load(working_dir/"coreset-points.npz", allow_pickle=True)["matrix"]
-    coreset_weights = np.load(working_dir/"coreset-weights.npz", allow_pickle=True)["matrix"]
-    
+def calc_distortion_for_adv_instance(working_dir: Path, k: int, input_points: np.ndarray, coreset_points: np.ndarray, coreset_weights: np.ndarray, rng: np.random.Generator):
     calc = DistortionCalculator(
         working_dir=working_dir,
         k=k,
@@ -248,6 +234,30 @@ def calc_distortion_for_adv_instance(job_info: JobInfo):
 
     fixed_rng = np.random.default_rng(42)
     calc.on_adv(ratio=1/2, rng=fixed_rng, is_random_seed_fixed=True)
+
+
+def calc_distortion_for_adv_instance_experiment(job_info: JobInfo):
+    working_dir = job_info.working_dir
+    experiment = AdvInstanceExperiment(
+        experiment_params=job_info.experiment_params,
+        working_dir=working_dir,
+    )
+
+    k = experiment._params.k
+    rng = experiment.set_random_seed()
+    input_points = experiment.get_data_set()
+    
+    logger.debug("Loading coreset...")
+    coreset_points = np.load(working_dir/"coreset-points.npz", allow_pickle=True)["matrix"]
+    coreset_weights = np.load(working_dir/"coreset-weights.npz", allow_pickle=True)["matrix"]
+
+    calc_distortion_for_adv_instance(
+        working_dir=working_dir,
+        k=k,
+        input_points=input_points,
+        coreset_points=coreset_points,
+        coreset_weights=coreset_weights,
+    )
 
 
 def calc_distortion_for_real_world_data_sets(job_info: JobInfo):
@@ -287,7 +297,7 @@ def calc_distortion_for_job(index: int, n_total: int, job_info: JobInfo, n_threa
         if experiment_type == "simple":
             calc_distortion_for_simple_instance(job_info)
         elif experiment_type == "adv":
-            calc_distortion_for_adv_instance(job_info)
+            calc_distortion_for_adv_instance_experiment(job_info)
         elif experiment_type == "rw":
             calc_distortion_for_real_world_data_sets(job_info)
         else:
