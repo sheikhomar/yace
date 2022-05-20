@@ -69,9 +69,9 @@ def generate_random_points_within_convex_hull(data_matrix: np.ndarray, k: int, n
     return generated_points
 
 
-def generate_candidate_solution_for_adv_instance(data_matrix: np.ndarray, k: int, sample_size: int):
+def generate_candidate_solution_for_adv_instance(data_matrix: np.ndarray, k: int, sample_size: int, rng: np.random.Generator):
     n_points, n_dim = data_matrix.shape
-    sampled_indices = np.random.choice(a=n_points, size=sample_size)
+    sampled_indices = rng.choice(a=n_points, size=sample_size)
     sampled_points = data_matrix[sampled_indices]
 
     # We generate remaining points by sampling from points
@@ -82,7 +82,7 @@ def generate_candidate_solution_for_adv_instance(data_matrix: np.ndarray, k: int
     #  4) Set X_i = X_i / lambda
     # Idea from: https://stats.stackexchange.com/questions/7977/how-to-generate-uniformly-distributed-points-on-the-surface-of-the-3-d-unit-sphe
     n_remaining_points = k - sample_size
-    generated_points = np.random.multivariate_normal(
+    generated_points = rng.multivariate_normal(
         mean=np.zeros(n_dim),
         size=n_remaining_points,
         cov=np.eye(n_dim),

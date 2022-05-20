@@ -105,13 +105,15 @@ class DistortionCalculator:
             df_dist_convex.to_feather(dist_convex_path)
             df_dist_convex.to_csv(str(dist_convex_path).replace(".feather", ".csv"))
 
-    def on_adv(self, ratio: float):
+    def on_adv(self, ratio: float, rng: np.random.Generator, is_random_seed_fixed: bool=False):
         sol_type = f"adv{ratio:0.2f}".replace(".", "_")
+        if is_random_seed_fixed:
+            sol_type = f"{sol_type}_fixed"
         output_path = self.working_dir/f"distortions-{sol_type}-solutions.feather"
         if not output_path.exists():
             sample_size = int(np.power(self.k, ratio))
             solution_generator = lambda: yace_eval.generate_candidate_solution_for_adv_instance(
-                data_matrix=self.input_points, k=self.k, sample_size=sample_size,
+                data_matrix=self.input_points, k=self.k, sample_size=sample_size, rng=rng,
             )
             df_distortions = self.calc_distortions(
                 solution_generator=solution_generator,
@@ -225,7 +227,7 @@ def calc_distortion_for_adv_instance(job_info: JobInfo):
     )
 
     k = experiment._params.k
-    experiment.set_random_seed()
+    rng = experiment.set_random_seed()
     input_points = experiment.get_data_set()
     
     logger.debug("Loading coreset...")
@@ -240,9 +242,12 @@ def calc_distortion_for_adv_instance(job_info: JobInfo):
         coreset_weights=coreset_weights,
     )
 
-    calc.on_adv(ratio=1/3)
-    calc.on_adv(ratio=1/2)
-    calc.on_adv(ratio=2/3)
+    calc.on_adv(ratio=1/3, rng=rng)
+    calc.on_adv(ratio=1/2, rng=rng)
+    calc.on_adv(ratio=2/3, rng=rng)
+
+    fixed_rng = np.random.default_rng(42)
+    calc.on_adv(ratio=1/2, rng=fixed_rng, is_random_seed_fixed=True)
 
 
 def calc_distortion_for_real_world_data_sets(job_info: JobInfo):
