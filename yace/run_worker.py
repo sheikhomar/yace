@@ -1,6 +1,7 @@
 import os, subprocess, json, shutil, time
 
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -8,6 +9,16 @@ import click
 import psutil
 
 import colorama
+
+
+def human_readable_diff(dt1: datetime, dt2: datetime) -> str:
+    attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
+    delta = relativedelta(dt1=dt1, dt2=dt2)
+    parts = [
+        f"{getattr(delta, attr)} {attr if getattr(delta, attr) > 1 else attr[:-1]}"
+        for attr in attrs if getattr(delta, attr)
+    ]
+    return ", ".join(parts)
 
 
 class JobInfo:
@@ -75,6 +86,7 @@ class JobInfo:
             cmd.append(f"{param_value}")
         return cmd
 
+
 class Worker:
     def __init__(self, queue_dir: str, max_active: int, n_threads: int) -> None:
         self._queue_dir = queue_dir
@@ -117,8 +129,8 @@ class Worker:
                 done_job_info_path = job.working_dir / "done.out"
                 if done_job_info_path.exists():
                     completed_at = datetime.fromtimestamp(done_job_info_path.stat().st_ctime)
-                    duration_secs = int((completed_at - job.started_at).total_seconds())
-                    print(f" - {colorama.Fore.GREEN}Completed!{colorama.Style.RESET_ALL} Running time: {duration_secs} secs.")
+                    running_time = human_readable_diff(dt1=completed_at, dt2=job.started_at)
+                    print(f" - {colorama.Fore.GREEN}Completed!{colorama.Style.RESET_ALL} Running time: {running_time}.")
                     job.completed_at = completed_at
                     job.process_id = -2
                     job.write_json(job_info_path)
