@@ -94,9 +94,9 @@ class RealWorldDataExperiment(Experiment):
             f.write("done")
         logger.debug("Done")
 
-    def set_random_seed(self):
-        np.random.default_rng(self._params.random_seed)
+    def set_random_seed(self) -> np.random.Generator:
         np.random.seed(self._params.random_seed)
+        return np.random.default_rng(self._params.random_seed)
 
     def get_data_set(self):
         data_file_path = f"data/input/{self._params.data_set}.npz"
