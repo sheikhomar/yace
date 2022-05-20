@@ -29,12 +29,13 @@ class JobCreator:
         os.makedirs(ready_dir, exist_ok=True)
 
         generate_experiments = self._load_experiment_generator()
+        gen_id = f"{np.random.randint(0, 1e5):06d}"
 
         for it in range(self._n_repetitions):
             for exp_params in generate_experiments():
                 print(f"[{it+1:03d} / {self._n_repetitions:03d}] Creating a job with experiment params: {exp_params}")
-                time_stamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")
-                experiment_no = f"rep{it}-{time_stamp}-{np.random.randint(0, 1e5):06d}"
+                time_stamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+                experiment_no = f"g{gen_id}-r{it}-x{time_stamp}{np.random.randint(0, 1e5):06d}"
                 working_dir = self._output_dir / self._experiment_type / self._experiment_name / experiment_no
                 os.makedirs(working_dir, exist_ok=True)
 
