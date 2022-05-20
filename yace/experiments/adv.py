@@ -399,3 +399,33 @@ def large_alpha_unadjusted_01() -> Generator[object, None, None]:
                     alpha=2/epsilon,
                     coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
                 )
+
+
+@experiment_generation
+def large_alpha_adjusted_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    adjust_weights=True,
+                    alpha=2/epsilon,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                )
+
+
+@experiment_generation
+def large_alpha_unadjusted_02() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    adjust_weights=False,
+                    alpha=2/epsilon,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                )
