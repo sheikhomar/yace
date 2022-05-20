@@ -301,21 +301,18 @@ def find_completed_jobs(results_dir: str) -> List[JobInfo]:
 
 
 def calc_distortions(results_dir: str, n_jobs: int, n_threads: int) -> None:
-    while True:
-        completed_jobs = find_completed_jobs(results_dir)
-        total_files = len(completed_jobs)
-        if total_files == 0:
-            break
-        logger.debug(f"Found {total_files} jobs to be processed...")
-        Parallel(n_jobs=n_jobs)(
-            delayed(calc_distortion_for_job)(
-                index=index,
-                n_total=total_files,
-                job_info=job_info,
-                n_threads=n_threads,
-            )
-            for index, job_info in enumerate(completed_jobs)
+    completed_jobs = find_completed_jobs(results_dir)
+    total_files = len(completed_jobs)
+    logger.debug(f"Found {total_files} jobs to be processed...")
+    Parallel(n_jobs=n_jobs)(
+        delayed(calc_distortion_for_job)(
+            index=index,
+            n_total=total_files,
+            job_info=job_info,
+            n_threads=n_threads,
         )
+        for index, job_info in enumerate(completed_jobs)
+    )
 
 
 @click.command(help="Evaluate algorithm on benchmark dataset.")
