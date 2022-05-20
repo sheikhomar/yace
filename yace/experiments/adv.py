@@ -121,7 +121,7 @@ class AdvInstanceExperiment(Experiment):
         np.savez_compressed(self._working_dir/"coreset-points.npz", matrix=coreset_points)
         np.savez_compressed(self._working_dir/"coreset-weights.npz", matrix=coreset_weights)
 
-        with open(self._working_dir / "done.out", "w") as f:
+        with open(self._working_dir / "coreset-done.out", "w") as f:
             f.write("done")
 
         logger.debug("Coreset constructed. Computing distortion...")
@@ -133,6 +133,9 @@ class AdvInstanceExperiment(Experiment):
             coreset_weights=coreset_weights,
         ).calc_distortions_for_adv_instance(rng)
         logger.debug("Done.")
+
+        with open(self._working_dir / "done.out", "w") as f:
+            f.write("done")
 
     def set_random_seed(self) -> np.random.Generator:
         np.random.seed(self._params.random_seed)
