@@ -12,8 +12,9 @@ class SensitivitySampling(SamplingBasedAlgorithm):
     inverse proportional to this distance.
     """
 
-    def __init__(self, n_clusters: int, coreset_size: int) -> None:
+    def __init__(self, n_clusters: int, coreset_size: int, adjust_weights: bool) -> None:
         super().__init__(n_clusters, coreset_size)
+        self._adjust_weights = adjust_weights
     
     def run(self, A):
         # Compute squared Euclidean distances between the input points 
@@ -56,10 +57,11 @@ class SensitivitySampling(SamplingBasedAlgorithm):
         # weights = (weights/(self._coreset_size))
         weights = total_cost / (self._coreset_size * point_costs[sampled_indices])
         
-        # Due to rounding errors, the weight for each point will
-        # be off by a small number. Add the deviation back.
-        weight_deviation = (n_points - weights.sum()) / self._coreset_size
-        weights += weight_deviation
+        if self._adjust_weights:
+            # Due to rounding errors, the weight for each point will
+            # be off by a small number. Add the deviation back.
+            weight_deviation = (n_points - weights.sum()) / self._coreset_size
+            weights += weight_deviation
 
         return sampled_indices, weights
 

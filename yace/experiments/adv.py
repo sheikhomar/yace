@@ -27,6 +27,7 @@ class AdvInstanceExperimentParams(ExperimentParams):
     simplex_points_variance: float
     coreset_size: int
     algorithm_name: str
+    adjust_weights: bool
     random_seed: int
 
 
@@ -39,6 +40,7 @@ def create_experiment_param(
     simplex_points_variance=None,
     coreset_size=None,
     algorithm_name=None,
+    adjust_weights=None,
     random_seed=None,
     ) -> AdvInstanceExperimentParams:
 
@@ -50,6 +52,7 @@ def create_experiment_param(
     simplex_points_variance = 1 if simplex_points_variance is None else simplex_points_variance
     coreset_size = int(k / (10 * np.power(epsilon, 2))) if coreset_size is None else coreset_size
     algorithm_name = "ss" if algorithm_name is None else algorithm_name
+    adjust_weights = True if adjust_weights is None else adjust_weights
     random_seed = int.from_bytes(os.urandom(3), "big") if random_seed is None else random_seed
 
     # Sanity check: we want the total number of generated
@@ -68,6 +71,7 @@ def create_experiment_param(
         simplex_points_variance=simplex_points_variance,
         coreset_size=coreset_size,
         algorithm_name=algorithm_name,
+        adjust_weights=adjust_weights,
         random_seed=random_seed,
     )
 
@@ -94,12 +98,14 @@ class AdvInstanceExperiment(Experiment):
             algorithm = SensitivitySampling(
                 n_clusters=2*self._params.k,
                 coreset_size=self._params.coreset_size,
+                adjust_weights=self._params.adjust_weights,
             )
         elif self._params.algorithm_name in ["ssx", "sensitivity-sampling-ex"]:
             logger.debug(f"Running Sensitivity Sampling Extended to generate coreset...")
             algorithm = SensitivitySamplingExtended(
                 n_clusters=2*self._params.k,
                 coreset_size=self._params.coreset_size,
+                adjust_weights=self._params.adjust_weights,
             )
         elif self._params.algorithm_name in ["us", "uniform", "uniform-sampling"]:
             logger.debug(f"Running Uniform Sampling to generate coreset...")
@@ -295,3 +301,30 @@ def full_06() -> Generator[object, None, None]:
                     coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
                 )
 
+
+@experiment_generation
+def full_adjusted_01() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.20, 0.10, 0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    adjust_weights=True,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                )
+
+
+@experiment_generation
+def full_unadjusted_01() -> Generator[object, None, None]:
+    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
+        for k in [10, 20, 50, 70, 100]:
+            for epsilon in [0.20, 0.10, 0.05, 0.01]:
+                yield create_experiment_param(
+                    k=k,
+                    epsilon=epsilon,
+                    algorithm_name=algo,
+                    adjust_weights=False,
+                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                )
