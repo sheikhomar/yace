@@ -147,6 +147,7 @@ cython_debug/
 /config/secrets/*.json
 notebooks/dask-worker-space/*
 notebooks/Untitled*
+notebooks/plots*
 data/experiments*
 data/queue
 data/input
