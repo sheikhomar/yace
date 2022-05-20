@@ -7,6 +7,8 @@ from typing import Dict, List, Optional
 import click
 import psutil
 
+import colorama
+
 
 class JobInfo:
     process_id: int
@@ -91,6 +93,7 @@ class Worker:
                 os.makedirs(directory)
 
     def run(self) -> None:
+        colorama.init()
         prev_has_launched = True
         has_launched = True
         while True:
@@ -108,13 +111,14 @@ class Worker:
         for job_info_path in job_info_paths:
             job = JobInfo.load_json(job_info_path)
             if not self._is_running(job.process_id):
-                print(f"Process {job.process_id} which started {job.started_at} is not running anymore.")
+                print(f"Process {job.process_id} stopped. Experiment: {colorama.Style.DIM}{job.working_dir}{colorama.Style.RESET_ALL}")
 
                 # Check if the result file is created.
                 done_job_info_path = job.working_dir / "done.out"
                 if done_job_info_path.exists():
                     completed_at = datetime.fromtimestamp(done_job_info_path.stat().st_ctime)
-                    print(f" - Completed at {completed_at}. Moving to completed.")
+                    duration_secs = int((completed_at - job.started_at).total_seconds())
+                    print(f" - {colorama.Fore.GREEN}Completed!{colorama.Style.RESET_ALL} Running time: {duration_secs} secs.")
                     job.completed_at = completed_at
                     job.process_id = -2
                     job.write_json(job_info_path)
@@ -124,7 +128,7 @@ class Worker:
                         dst=f"{job.working_dir}/job-info.json"
                     )
                 else:
-                    print(" - Process stopped but done.out file does not exist! Discarding run.")
+                    print(f" - {colorama.Fore.RED}Failed!{colorama.Style.RESET_ALL}. Check logs at {job.working_dir}")
                     self._move_to_discarded(job_info_path)
 
     def _is_running(self, process_id: int) -> bool:
@@ -186,10 +190,9 @@ class Worker:
             if job_info_path is None:
                 return False
             if self._should_discard(job_info_path):
-                print(f"Found job that is already running or completed.")
+                print(f"{colorama.Fore.RED}Found job that is already running or completed.{colorama.Style.RESET_ALL}")
                 self._move_to_discarded(job_info_path)
             else:
-                print(f"Will run job with config {job_info_path}")
                 break
 
         # Prepare for launch
@@ -199,7 +202,7 @@ class Worker:
         cmd += ["--n-threads", f"{self._n_threads}"]
 
         # Actual launch
-        print(f"Launching experiment with command:\n '{cmd}'")
+        print(f"Launching experiment: {colorama.Style.DIM}{job_info.working_dir}{colorama.Style.RESET_ALL}")
         p = subprocess.Popen(
             args=cmd,
             stdout=open(job_info.working_dir / "stdout.txt", "a"),
