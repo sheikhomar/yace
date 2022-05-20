@@ -15,7 +15,7 @@ from yace.coresets.uniform_sampling import UniformSampling
 from yace.data.synthetic import generate_adv_instance
 from yace.experiments import Experiment, ExperimentParams, make_experiment_generation_registry
 from yace.helpers.logger import get_logger
-from yace.calc_distortions import calc_distortion_for_adv_instance
+from yace.helpers.evaluation import DistortionCalculator
 
 
 @dataclasses.dataclass
@@ -91,7 +91,7 @@ class AdvInstanceExperiment(Experiment):
     def run(self) -> None:
         logger.debug(f"Running AdvInstanceExperiment with params: \n{self._params}")
 
-        self.set_random_seed()
+        rng = self.set_random_seed()
         X = self.get_data_set()
 
         if self._params.algorithm_name in ["ss", "sensitivity", "sensitivity-sampling"]:
@@ -125,13 +125,13 @@ class AdvInstanceExperiment(Experiment):
             f.write("done")
 
         logger.debug("Coreset constructed. Computing distortion...")
-        calc_distortion_for_adv_instance(
+        DistortionCalculator(
             working_dir=self._working_dir,
             k=self._params.k,
             input_points=X,
             coreset_points=coreset_points,
             coreset_weights=coreset_weights,
-        )
+        ).calc_distortions_for_adv_instance(rng)
         logger.debug("Done.")
 
     def set_random_seed(self) -> np.random.Generator:
