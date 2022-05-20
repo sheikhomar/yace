@@ -51,7 +51,7 @@ class JobCreator:
                     "working-dir": str(working_dir),
                 }
 
-                job_name = f"{self._experiment_type}.{self._experiment_name}.rep{it}.{experiment_no}.json"
+                job_name = f"{self._experiment_type}.{self._experiment_name}.{experiment_no}.json"
                 job_info.write_json(ready_dir / job_name)
 
     def _load_experiment_generator(self):
