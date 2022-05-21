@@ -26,6 +26,7 @@ class AdvInstanceExperimentParams(ExperimentParams):
     simplex_size: int
     n_points_per_simplex: int
     simplex_points_variance: float
+    coreset_exp: float
     coreset_size: int
     algorithm_name: str
     adjust_weights: bool
@@ -39,6 +40,7 @@ def create_experiment_param(
     simplex_size=None,
     n_points_per_simplex=None,
     simplex_points_variance=None,
+    coreset_exp=None,
     coreset_size=None,
     algorithm_name=None,
     adjust_weights=None,
@@ -51,7 +53,8 @@ def create_experiment_param(
     simplex_size = int(k / 2) if simplex_size is None else simplex_size
     n_points_per_simplex = int(2 * np.sqrt(k) / np.power(epsilon, 2)) if n_points_per_simplex is None else n_points_per_simplex
     simplex_points_variance = 1 if simplex_points_variance is None else simplex_points_variance
-    coreset_size = int(k / (10 * np.power(epsilon, 2))) if coreset_size is None else coreset_size
+    coreset_exp = 1.0 if coreset_exp is None else coreset_exp
+    coreset_size = int(np.power(epsilon, coreset_exp) / (10 * np.power(epsilon, 2))) if coreset_size is None else coreset_size
     algorithm_name = "ss" if algorithm_name is None else algorithm_name
     adjust_weights = True if adjust_weights is None else adjust_weights
     random_seed = int.from_bytes(os.urandom(3), "big") if random_seed is None else random_seed
@@ -70,6 +73,7 @@ def create_experiment_param(
         simplex_size=simplex_size,
         n_points_per_simplex=n_points_per_simplex,
         simplex_points_variance=simplex_points_variance,
+        coreset_exp=coreset_exp,
         coreset_size=coreset_size,
         algorithm_name=algorithm_name,
         adjust_weights=adjust_weights,
@@ -158,274 +162,36 @@ experiment_generation = make_experiment_generation_registry()
 initialize_experiment = AdvInstanceExperiment
 
 
-@experiment_generation
-def ss_us_01() -> Generator[object, None, None]:
+def generate_experiment_for(epsilon: float) -> Generator[object, None, None]:
     for algo in ["sensitivity-sampling", "uniform-sampling"]:
         for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo
-                )
-
-
-@experiment_generation
-def ss_us_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.25) / (10 * np.power(epsilon, 2)))
-                )
-
-
-@experiment_generation
-def ss_us_03() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.5) / (10 * np.power(epsilon, 2)))
-                )
-
-
-@experiment_generation
-def ssx_us_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def ss_us_alpha_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                    alpha=np.power(epsilon, -1),
-                )
-
-
-@experiment_generation
-def ss_us_alpha_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "uniform-sampling", "sensitivity-sampling-ex"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                    alpha=2*np.power(epsilon, -1),
-                )
-
-
-@experiment_generation
-def full_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_03() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_04() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 40, 50, 60, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_05() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_06() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_adjusted_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=True,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_unadjusted_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10, 0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=False,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_adjusted_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=True,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def full_unadjusted_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=False,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
-
-
-@experiment_generation
-def large_alpha_adjusted_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10]:
+            for coreset_exp in [1.00, 1.25, 1.50]:
                 yield create_experiment_param(
                     k=k,
                     epsilon=epsilon,
                     algorithm_name=algo,
                     adjust_weights=True,
                     alpha=2/epsilon,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
+                    coreset_exp=coreset_exp,
+                    coreset_size=int(np.power(k, coreset_exp) / (10 * np.power(epsilon, 2))),
                 )
 
 
 @experiment_generation
-def large_alpha_unadjusted_01() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.20, 0.10]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=False,
-                    alpha=2/epsilon,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
+def epsilon_0_20() -> Generator[object, None, None]:
+    return generate_experiment_for(epsilon=0.20)
 
 
 @experiment_generation
-def large_alpha_adjusted_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=True,
-                    alpha=2/epsilon,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
+def epsilon_0_10() -> Generator[object, None, None]:
+    return generate_experiment_for(epsilon=0.10)
 
 
 @experiment_generation
-def large_alpha_unadjusted_02() -> Generator[object, None, None]:
-    for algo in ["sensitivity-sampling", "sensitivity-sampling-ex", "uniform-sampling"]:
-        for k in [10, 20, 50, 70, 100]:
-            for epsilon in [0.05, 0.01]:
-                yield create_experiment_param(
-                    k=k,
-                    epsilon=epsilon,
-                    algorithm_name=algo,
-                    adjust_weights=False,
-                    alpha=2/epsilon,
-                    coreset_size=int(np.power(k, 1.0) / (10 * np.power(epsilon, 2))),
-                )
+def epsilon_0_05() -> Generator[object, None, None]:
+    return generate_experiment_for(epsilon=0.05)
+
+
+@experiment_generation
+def epsilon_0_01() -> Generator[object, None, None]:
+    return generate_experiment_for(epsilon=0.01)

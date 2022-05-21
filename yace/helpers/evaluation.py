@@ -262,12 +262,7 @@ class DistortionCalculator:
             df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
     def calc_distortions_for_adv_instance(self, rng: np.random.Generator):
-        self.on_adv(ratio=1/3, rng=rng)
         self.on_adv(ratio=1/2, rng=rng)
-        self.on_adv(ratio=2/3, rng=rng)
-
-        fixed_rng = np.random.default_rng(42)
-        self.on_adv(ratio=1/2, rng=fixed_rng, is_random_seed_fixed=True)
 
     def calc_distortions_for_simple_instance(self):
         self.on_random()
