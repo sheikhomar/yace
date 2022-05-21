@@ -179,7 +179,7 @@ class Worker:
         return False
 
     def _move_to_discarded(self, job_info_path: Path) -> None:
-        discarded_file_name = job_info_path.name + "-" + datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        discarded_file_name = job_info_path.name # + "-" + datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         discarded_path = f"{self._dir_discarded}/{discarded_file_name}"
         shutil.move(job_info_path, discarded_path)
         print(f"Discarding job {job_info_path.name}. Moving to {discarded_path}...")
