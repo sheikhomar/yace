@@ -110,11 +110,15 @@ class Worker:
         has_launched = True
         while True:
             self._clean_in_progress()
-            n_active = len(self._find_in_progress_files())
-            if n_active < self._max_active:
-                has_launched = self._lunch_new_run()
-                if not has_launched and prev_has_launched:
-                    print("No more jobs in queue.")
+            while True:
+                n_active = len(self._find_in_progress_files())
+                if n_active < self._max_active:
+                    has_launched = self._lunch_new_run()
+                    if not has_launched and prev_has_launched:
+                        print("No more jobs in queue.")
+                        break
+                else:
+                    break
             time.sleep(1)
             prev_has_launched = has_launched
 
@@ -124,8 +128,6 @@ class Worker:
             job = JobInfo.load_json(job_info_path)
             if not self._is_running(job.process_id):
                 print(f"Process {job.process_id} stopped. Experiment: {colorama.Style.DIM}{job.working_dir}{colorama.Style.RESET_ALL}")
-                time.sleep(1)
-
                 # Check if the result file is created.
                 done_job_info_path = job.working_dir / "done.out"
                 if done_job_info_path.exists():
