@@ -8,10 +8,6 @@ import pandas as pd
 import scipy.sparse as sp_sparse
 
 from dacite import from_dict
-from sklearn.metrics.pairwise import _euclidean_distances
-from sklearn.metrics import pairwise_distances
-from sklearn.preprocessing import normalize
-from sklearn.utils.extmath import row_norms
 
 from yace.coresets.sensitivity_sampling import SensitivitySampling
 from yace.coresets.sensitivity_sampling_ex import SensitivitySamplingExtended
@@ -19,6 +15,7 @@ from yace.coresets.uniform_sampling import UniformSampling
 from yace.data.synthetic import generate_simplex
 from yace.experiments import Experiment, ExperimentParams, make_experiment_generation_registry
 from yace.helpers.logger import get_logger
+from yace.helpers.evaluation import DistortionCalculator
 
 
 @dataclasses.dataclass
@@ -104,6 +101,18 @@ class SimpleInstanceExperiment(Experiment):
         coreset_points, coreset_weights = algorithm.run(X)
         sp_sparse.save_npz(self._working_dir/"coreset-points.npz", matrix=coreset_points, compressed=True)
         np.savez_compressed(self._working_dir/"coreset-weights.npz", matrix=coreset_weights)
+
+        with open(self._working_dir / "coreset-done.out", "w") as f:
+            f.write("done")
+
+        logger.debug("Coreset constructed. Computing distortion...")
+        DistortionCalculator(
+            working_dir=self._working_dir,
+            k=self._params.k,
+            input_points=X,
+            coreset_points=coreset_points,
+            coreset_weights=coreset_weights,
+        ).calc_distortions_for_simple_instance()
 
         with open(self._working_dir / "done.out", "w") as f:
             f.write("done")

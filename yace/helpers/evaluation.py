@@ -268,3 +268,7 @@ class DistortionCalculator:
 
         fixed_rng = np.random.default_rng(42)
         self.on_adv(ratio=1/2, rng=fixed_rng, is_random_seed_fixed=True)
+
+    def calc_distortions_for_simple_instance(self):
+        self.on_random()
+        self.on_convex()

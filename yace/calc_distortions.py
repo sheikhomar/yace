@@ -39,16 +39,13 @@ def calc_distortion_for_simple_instance(job_info: JobInfo):
     coreset_points = sp_sparse.load_npz(working_dir/"coreset-points.npz")
     coreset_weights = np.load(working_dir/"coreset-weights.npz", allow_pickle=True)["matrix"]
 
-    calc = DistortionCalculator(
+    DistortionCalculator(
         working_dir=working_dir,
         k=k,
         input_points=input_points,
         coreset_points=coreset_points,
         coreset_weights=coreset_weights,
-    )
-
-    calc.on_random()
-    calc.on_convex()
+    ).calc_distortions_for_simple_instance()
 
 
 def calc_distortion_for_adv_instance(job_info: JobInfo):
