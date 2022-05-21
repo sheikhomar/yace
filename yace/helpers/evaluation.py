@@ -161,7 +161,7 @@ class DistortionCalculator:
             )
 
             df_dist_random.to_feather(dist_random_path)
-            df_dist_random.to_csv(str(dist_random_path).replace(".feather", ".csv"))
+            # df_dist_random.to_csv(str(dist_random_path).replace(".feather", ".csv"))
 
     def on_convex(self):
         dist_convex_path = self.working_dir/"distortions-convex-solutions.feather"
@@ -176,7 +176,7 @@ class DistortionCalculator:
             )
 
             df_dist_convex.to_feather(dist_convex_path)
-            df_dist_convex.to_csv(str(dist_convex_path).replace(".feather", ".csv"))
+            # df_dist_convex.to_csv(str(dist_convex_path).replace(".feather", ".csv"))
 
     def on_adv(self, ratio: float, rng: np.random.Generator, is_random_seed_fixed: bool=False):
         sol_type = f"adv{ratio:0.2f}".replace(".", "_")
@@ -194,7 +194,7 @@ class DistortionCalculator:
                 n_repetitions=50,
             )
             df_distortions.to_feather(output_path)
-            df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
+            # df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
     def on_kmeans_plus_plus_input(self):
         solution_type = "kmeans++-on-input"
@@ -221,7 +221,7 @@ class DistortionCalculator:
             df_distortions["iteration"] = np.arange(len(distortions_list))
             
             df_distortions.to_feather(output_path)
-            df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
+            # df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
     def on_kmeans_plus_plus_coreset(self):
         solution_type = "kmeans++-on-coreset"
@@ -259,7 +259,7 @@ class DistortionCalculator:
             )
 
             df_distortions.to_feather(output_path)
-            df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
+            # df_distortions.to_csv(str(output_path).replace(".feather", ".csv"))
 
     def calc_distortions_for_adv_instance(self, rng: np.random.Generator):
         self.on_adv(ratio=1/2, rng=rng)
