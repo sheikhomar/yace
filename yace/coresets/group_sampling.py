@@ -45,7 +45,8 @@ class Group:
         self._lower_bound_cost = lower_bound_cost
         self._upper_bound_cost = upper_bound_cost
         self._clustered_points: Dict[int, ClusteredPoint] = dict()
-        self._total_cost = 0.0
+        self._total_cost: float = 0.0
+        self._total_points: int = 0
 
     def add_point(self, clustered_point: ClusteredPoint) -> None:
         key = clustered_point.cluster_index
@@ -53,10 +54,16 @@ class Group:
             self._clustered_points[key] = []
         self._clustered_points[key].append(clustered_point)
         self._total_cost += clustered_point.cost
+        self._total_points += 1
 
     @property
     def total_cost(self) -> float:
         return self._total_cost
+    
+    @property
+    def count_points(self) -> int:
+        """Counts the number of points assigned to this group."""
+        return self._total_points
 
     def count_points_in_cluster(self, cluster_index: int) -> int:
         """Counts the number of points in the given cluster."""
@@ -83,6 +90,9 @@ class GroupSet:
         costs = np.array([g.total_cost for g in self._groups])
         return costs / costs.sum()
 
+    def iterator(self):
+        for group in self._groups:
+            yield group
 
 class Ring:
     def __init__(self, cluster_index: int, range_value: int, average_cluster_cost: float) -> None:
@@ -418,3 +428,37 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                     groups.add(group=group)
                     ring.add_points_to_group(group=group)
 
+    def add_sampled_points_from_groups_to_coreset(self, point_costs: np.ndarray, groups: GroupSet, min_sampling_size: int = 1):
+        T = self._coreset_size
+        k = self._n_clusters
+
+        cluster_indices = []
+        cluster_weights = []
+
+        total_cost = np.sum(point_costs)
+
+        # The number of remaining points to reach the requested coreset size.
+        n_remaining = T
+
+        # Tracks the groups that we need to sample points from.
+        sampling_group_indices = []
+
+        # Track the total cost of the groups that we need to sample points from.
+        sampling_group_total_cost = 0.0
+
+        for group in groups.iterator():
+            group_cost = group.total_cost
+            normalized_group_cost = group_cost / total_cost
+            n_samples = T * normalized_group_cost
+
+            if n_samples < min_sampling_size:
+                # We will not sample from this group because T_m is below the minimum threshold
+                # Instead, we simply add cluster centers to the coreset.
+                for cluster_index in range(self._n_clusters):
+                    weight = group.count_points_in_cluster(cluster_index=cluster_index)
+                    if weight > 0:
+                        cluster_indices.append(cluster_index)
+                        cluster_weights.append(weight)
+            elif n_samples >= group.count_points:
+                # Will not sample because T_m >= |G_m|.
+                pass
