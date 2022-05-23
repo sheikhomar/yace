@@ -1,11 +1,12 @@
 import dataclasses
 from math import floor
 from tokenize import group
-from typing import Dict
+from typing import Dict, List, Tuple
 import numpy as np
 import scipy.sparse as sp_sparse
 
 from scipy.sparse import issparse
+from sklearn import cluster
 
 from yace.coresets.sampling import SamplingBasedAlgorithm
 
@@ -61,6 +62,23 @@ class Group:
         return len(self._clustered_points[cluster_index])
 
 
+class GroupSet:
+    def __init__(self, group_range_size: int) -> None:
+        self._group_range_size = group_range_size
+        self._groups: List[Group] = []
+
+    def add(self, group: Group) -> None:
+        self._groups.append(group)
+    
+    @property
+    def size(self) -> int:
+        return len(self._groups)
+
+    def compute_normalized_costs(self) -> List[float]:
+        costs = np.array([g.total_cost for g in self._groups])
+        return costs / costs.sum()
+
+
 class Ring:
     def __init__(self, cluster_index: int, range_value: int, average_cluster_cost: float) -> None:
         # The cluster for which this ring belongs to.
@@ -78,21 +96,78 @@ class Ring:
         # Ring upper bound cost := Δ_c * 2^(l+1)
         self._upper_bound_cost = average_cluster_cost * np.power(2, range_value + 1)
 
+        # The points assigned to this ring.
+        self._points: List[ClusteredPoint] = []
+
         self._total_cost = 0.0
 
     def try_add_point(self, point_index: int, point_cost: float) -> bool:
-        # If cost(p, A) is between Δ_c*2^l and Δ_c*2^(l+1) ...
-        if point_cost >= self._lower_bound_cost and point_cost < self._upper_bound_cost:
-            pass
+        """Adds a point to the ring if its costs is within the bounds of this ring."""
 
+        # Determine if point cost is within the bounds of this ring.
+        # cost(p, A) is between Δ_c*2^l and Δ_c*2^(l+1) 
+        if point_cost >= self._lower_bound_cost and point_cost < self._upper_bound_cost:
+            self._points.append(ClusteredPoint(
+                point_index=point_index,
+                cluster_index=self._cluster_index,
+                cost=point_cost,
+            ))
+            self._total_cost += point_cost
+            return True
         return False
+
+    @property
+    def total_cost(self) -> float:
+        return self._total_cost
+    
+    def lower_bound_cost(self) -> float:
+        return self._lower_bound_cost
+    
+    def upper_bound_cost(self) -> float:
+        return self._upper_bound_cost
+
 
 class RingSet:
     def __init__(self, range_start: int, range_end: int, n_clusters: int) -> None:
         self._range_start = range_start
         self._range_end = range_end
         self._n_clusters = n_clusters
+        self._rings: Dict[Tuple[int, int], Ring] = []
+        self._overshot_points: List[RinglessPoint] = []
+        self._shortfall_points: List[RinglessPoint] = []
 
+    def find_or_create(self, cluster_index: int, range_value: int, average_cluster_cost: float) -> Ring:
+        key = tuple(cluster_index, range_value)
+        if key not in self._rings:
+            self._rings[key] = Ring(
+                cluster_index=cluster_index,
+                range_value=range_value,
+                average_cluster_cost=average_cluster_cost
+            )
+        return self._rings[key]
+
+    def add_overshot_point(self, point_index: int, cluster_index: int, point_cost: float, cost_boundary: float) -> None:
+        self._overshot_points.append(RinglessPoint(
+            point_index=point_index,
+            cluster_index=cluster_index,
+            point_cost=point_cost,
+            cost_boundary=cost_boundary,
+            is_overshot=True,
+        ))
+
+    def add_shortfall_point(self, point_index: int, cluster_index: int, point_cost: float, cost_boundary: float) -> None:
+        self._overshot_points.append(RinglessPoint(
+            point_index=point_index,
+            cluster_index=cluster_index,
+            point_cost=point_cost,
+            cost_boundary=cost_boundary,
+            is_overshot=False,
+        ))
+
+    def calc_ring_cost(self, ring_range_value: int) -> float:
+        """Sums the costs of all points in captured by all clusters for a given ring range i.e., cost(R_l) = sum_{p in R_l} cost(p, A)."""
+        [ring. for ring in self._rings.values()]
+        pass
 
 class GroupSamplingSampling(SamplingBasedAlgorithm):
     def __init__(self, n_clusters: int, coreset_size: int, beta: int, group_range_size: int, min_group_sampling_size: int) -> None:
