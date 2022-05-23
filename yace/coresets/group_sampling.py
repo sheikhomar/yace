@@ -119,12 +119,21 @@ class Ring:
     @property
     def total_cost(self) -> float:
         return self._total_cost
-    
+
+    @property
+    def range_value(self) -> int:
+        return self._range_value
+
+    @property
     def lower_bound_cost(self) -> float:
         return self._lower_bound_cost
-    
+
+    @property
     def upper_bound_cost(self) -> float:
         return self._upper_bound_cost
+    
+    def count_points(self) -> int:
+        return len(self._points)
 
 
 class RingSet:
@@ -156,7 +165,7 @@ class RingSet:
         ))
 
     def add_shortfall_point(self, point_index: int, cluster_index: int, point_cost: float, cost_boundary: float) -> None:
-        self._overshot_points.append(RinglessPoint(
+        self._shortfall_points.append(RinglessPoint(
             point_index=point_index,
             cluster_index=cluster_index,
             point_cost=point_cost,
@@ -166,8 +175,49 @@ class RingSet:
 
     def calc_ring_cost(self, ring_range_value: int) -> float:
         """Sums the costs of all points in captured by all clusters for a given ring range i.e., cost(R_l) = sum_{p in R_l} cost(p, A)."""
-        [ring. for ring in self._rings.values()]
-        pass
+        costs = [
+            ring.total_cost
+            for ring in self._rings.values()
+            if ring.range_value == ring_range_value
+        ]
+        return np.sum(costs)
+
+    def count_ring_points(self, ring_range_value: int) -> int:
+        """Counts the number of points captured by a given ring range l i.e., |R_l|."""
+        counts = [
+            ring.count_points
+            for ring in self._rings.values()
+            if ring.range_value == ring_range_value
+        ]
+        return np.sum(counts)
+
+    def get_number_of_shortfall_points(self, cluster_index: int) -> int:
+        """Counts the number of shortfall points in a given cluster."""
+        counts = [
+            1
+            for point in self._shortfall_points
+            if point.cluster_index == cluster_index and point.is_overshot == False
+        ]
+        return np.sum(counts)
+
+    def compute_cost_of_overshot_points(self, cluster_index: int=-1) -> float:
+        """Computes the cost of overshot points. 
+        If -1 then compute the costs for all points. 
+        If non-negative, computes the cost for all points in the given cluster."""
+        costs = [
+            point.point_cost
+            for point in self._overshot_points
+            if cluster_index == -1 or (cluster_index >= 0 and point.cluster_index == cluster_index)
+        ]
+        return np.sum(costs)
+
+    def get_overshot_points(self, cluster_index: int) -> List[RinglessPoint]:
+        return [
+            point
+            for point in self._overshot_points
+            if point.cluster_index == cluster_index
+        ]
+
 
 class GroupSamplingSampling(SamplingBasedAlgorithm):
     def __init__(self, n_clusters: int, coreset_size: int, beta: int, group_range_size: int, min_group_sampling_size: int) -> None:
