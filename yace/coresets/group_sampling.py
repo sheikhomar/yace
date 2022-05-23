@@ -286,3 +286,26 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                     raise ValueError("Point should either belong to a ring or be ring less.")
 
         return rings
+
+    def _add_shortfall_points_to_coreset(self, rings: RingSet):
+        """
+        Handle points whose costs are below the lowest ring range i.e. l < log(1/beta).
+        These are called shortfall points because they fall short of being captured by the
+        inner-most ring. These points are snapped to the center of the assigned cluster by
+        adding the centers to the coreset weighted by the number of shortfall points of
+        that cluster.
+        """
+
+        cluster_indices = []
+        weights = []
+        
+        for cluster_index in range(self._n_clusters):
+            n_shortfall_points = rings.get_number_of_shortfall_points(cluster_index=cluster_index)
+            if n_shortfall_points == 0:
+                # Not all clusters may have shortfall points so skip those.
+                continue
+            
+            weights.append(n_shortfall_points)
+            cluster_indices.append(cluster_indices)
+        
+        return cluster_indices, weights
