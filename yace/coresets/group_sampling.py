@@ -1,6 +1,6 @@
 import dataclasses
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import numba
@@ -136,9 +136,19 @@ class Ring:
     @property
     def upper_bound_cost(self) -> float:
         return self._upper_bound_cost
-    
+
+    @property
     def count_points(self) -> int:
         return len(self._points)
+    
+    def add_points_to_group(self, group: Group) -> None:
+        """Adds points in this ring to the given group."""
+        for point in self._points:
+            group.add_point(ClusteredPoint(
+                point_index=point.point_index,
+                cluster_index=point.cluster_index,
+                cost=point.cost,
+            ))
 
 
 class RingSet:
@@ -149,6 +159,18 @@ class RingSet:
         self._rings: Dict[Tuple[int, int], Ring] = []
         self._overshot_points: List[RinglessPoint] = []
         self._shortfall_points: List[RinglessPoint] = []
+
+    @property
+    def range_start(self) -> int:
+        return self._range_start
+
+    @property
+    def range_end(self) -> int:
+        return self._range_end
+    
+    def find(self, cluster_index: int, range_value: int) -> Optional[Ring]:
+        key = tuple(cluster_index, range_value)
+        return self._rings.get(key, None)
 
     def find_or_create(self, cluster_index: int, range_value: int, average_cluster_cost: float) -> Ring:
         key = tuple(cluster_index, range_value)
@@ -357,3 +379,42 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                         cluster_index=point.cluster_index,
                         cost=point.point_cost,
                     ))
+
+    def _group_ring_points(self, rings: RingSet, groups: GroupSet):
+        k = self._n_clusters
+
+        for l in range(rings.range_start, rings.range_end+1):
+            ring_cost = rings.calc_ring_cost(ring_range_value=l)
+
+            for cluster_index in self._n_clusters:
+                ring = rings.find(cluster_index=cluster_index, range_value=l)
+
+                if ring is None or ring.count_points == 0:
+                    # If no ring exist for the given range value `l` and cluster index,
+                    # no points are captured by the current ring, then continue to the next ring.
+                    continue
+
+                cluster_cost = ring.total_cost
+
+                # Determine which points to include in the group
+                for j in range(groups.group_range_size):
+                    lower_bound = 1 / k * np.power(2, -j) * ring_cost
+                    upper_bound = 1 / k * np.power(2, -j + 1) * ring_cost
+                    should_add_points_into_group = False
+
+                    if j == 0:
+                        # Group 0 has no upper bound.
+                        should_add_points_into_group = cluster_cost >= lower_bound
+                    elif j == (groups.group_range_size-1):
+                        # Group j has no lower bound.
+                        should_add_points_into_group = cluster_cost < upper_bound
+                    else:
+                        should_add_points_into_group = cluster_cost >= lower_bound and cluster_cost < upper_bound
+
+                # Create a group and add ring points to it.
+                if should_add_points_into_group:
+                    l = np.power(2, 31) # Simply assign a large value
+                    group = Group(range_value=j, ring_range_value=l, lower_bound_cost=lower_bound, upper_bound_cost=upper_bound)
+                    groups.add(group=group)
+                    ring.add_points_to_group(group=group)
+
