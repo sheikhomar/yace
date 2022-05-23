@@ -1,12 +1,12 @@
 import dataclasses
-from math import floor
-from tokenize import group
-from typing import Dict, List, Tuple
-import numpy as np
-import scipy.sparse as sp_sparse
 
+from typing import Dict, List, Tuple
+
+import numpy as np
+import numba
+import pandas as pd
+import scipy.sparse as sp_sparse
 from scipy.sparse import issparse
-from sklearn import cluster
 
 from yace.coresets.sampling import SamplingBasedAlgorithm
 
@@ -233,11 +233,56 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
         cluster_labels = np.argmin(D, axis=1)
         point_costs = np.min(D, axis=1)
 
-        self._make_rings(point_costs=point_costs)
+        rings = self._make_rings(point_costs=point_costs, cluster_labels=cluster_labels)
 
-    def _make_rings(self, point_costs: np.ndarray):
+    def _make_rings(self, point_costs: np.ndarray, cluster_labels: np.ndarray) -> RingSet:
         ring_range_start = -int(np.floor(np.log10(self._beta)))
         ring_range_end = -ring_range_start
 
         n_points = point_costs.shape[0]
-        pass
+        k = self._n_clusters
+
+        rings = RingSet(range_start=ring_range_start, range_end=ring_range_end, n_clusters=k)
+
+        average_cluster_costs = pd.DataFrame(dict(cost=point_costs, label=cluster_labels)).groupby("label").mean()["cost"].to_numpy()
+        
+        for point_index in range(n_points):
+            cluster_index = cluster_labels[point_index]
+            point_cost = point_costs[point_index]
+
+            # The average cost of cluster `c`: Δ_c
+            average_cluster_cost = average_cluster_costs[cluster_index]
+
+            point_put_in_ring = False
+            for l in range(ring_range_start, ring_range_end):
+                ring = rings.find_or_create(cluster_index=cluster_index, range_value=l, average_cluster_cost=average_cluster_cost)
+
+                # Add point if cost(p, A) is within bounds i.e. between Δ_c*2^l and Δ_c*2^(l+1)
+                if ring.try_add_point(point_index=point_index, point_cost=point_cost):
+                    point_put_in_ring = True
+                    break
+            
+            if point_put_in_ring == False:
+                inner_most_ring_cost = average_cluster_cost * np.power(2, ring_range_start)
+                outer_most_ring_cost = average_cluster_cost * np.power(2, ring_range_end + 1)
+
+                if point_cost < inner_most_ring_cost:
+                    # Track shortfall points: below l's lower range i.e. l<log⁡(1/β)
+                    rings.add_shortfall_point(
+                        point_index=point_index,
+                        cluster_index=cluster_index,
+                        point_cost=point_cost,
+                        cost_boundary=inner_most_ring_cost
+                    )
+                elif point_cost > outer_most_ring_cost:
+                    # Track overshot points: above l's upper range i.e., l>log⁡(β)
+                    rings.add_overshot_point(
+                        point_index=point_index,
+                        cluster_index=cluster_index,
+                        point_cost=point_cost,
+                        cost_boundary=inner_most_ring_cost
+                    )
+                else:
+                    raise ValueError("Point should either belong to a ring or be ring less.")
+
+        return rings
