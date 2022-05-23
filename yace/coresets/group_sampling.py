@@ -68,12 +68,16 @@ class GroupSet:
         self._group_range_size = group_range_size
         self._groups: List[Group] = []
 
-    def add(self, group: Group) -> None:
-        self._groups.append(group)
-    
     @property
     def size(self) -> int:
         return len(self._groups)
+
+    @property
+    def group_range_size(self) -> int:
+        return self._group_range_size
+
+    def add(self, group: Group) -> None:
+        self._groups.append(group)
 
     def compute_normalized_costs(self) -> List[float]:
         costs = np.array([g.total_cost for g in self._groups])
@@ -309,3 +313,47 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
             cluster_indices.append(cluster_indices)
         
         return cluster_indices, weights
+
+    def _group_overshot_points(self, rings: RingSet, groups: GroupSet, n_groups: int = 5):
+        k = self._n_clusters
+        total_cost = rings.compute_cost_of_overshot_points()
+
+        for cluster_index in range(self._n_clusters):
+            cluster_cost = rings.compute_cost_of_overshot_points(cluster_index=cluster_index)
+            points = rings.get_overshot_points(cluster_index=cluster_index)
+
+            if len(points) == 0:
+                # If there are no overshot points in the current cluster then go to next cluster.
+                continue
+            
+            # Determine which points to include in the group
+            for j in range(n_groups):
+                lower_bound = 1 / k * np.power(2, -j) * total_cost
+                upper_bound = 1 / k * np.power(2, -j + 1) * total_cost
+                should_add_points_into_group = False
+
+                if j == 0:
+                    # Group 0 has no upper bound.
+                    should_add_points_into_group = cluster_cost >= lower_bound
+                elif j == (groups.group_range_size-1):
+                    # Group j has no lower bound.
+                    should_add_points_into_group = cluster_cost < upper_bound
+                else:
+                    should_add_points_into_group = cluster_cost >= lower_bound and cluster_cost < upper_bound
+            
+            # Create a group and add overshot points to it.
+            if should_add_points_into_group:
+                l = np.power(2, 31) # Simply assign a large value
+                group = Group(
+                    range_value=j,
+                    ring_range_value=l,
+                    lower_bound_cost=lower_bound,
+                    upper_bound_cost=upper_bound,
+                )
+                groups.add(group=group)
+                for point in points:
+                    group.add_point(ClusteredPoint(
+                        point_index=point.point_index,
+                        cluster_index=point.cluster_index,
+                        cost=point.point_cost,
+                    ))
