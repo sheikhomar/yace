@@ -21,6 +21,7 @@ class RinglessPoint:
     is_overshot: bool
 
 
+@dataclasses.dataclass
 class ClusteredPoint:
     """Represents a reference to a point which has been assigned a cluster."""
 
