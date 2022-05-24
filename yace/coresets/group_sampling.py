@@ -115,10 +115,10 @@ class Ring:
         self._average_cluster_cost = average_cluster_cost
 
         #  Ring upper bound cost := Δ_c * 2^l
-        self._lower_bound_cost = average_cluster_cost * np.power(2, range_value)
+        self._lower_bound_cost = average_cluster_cost * np.power(2.0, range_value)
 
         # Ring upper bound cost := Δ_c * 2^(l+1)
-        self._upper_bound_cost = average_cluster_cost * np.power(2, range_value + 1)
+        self._upper_bound_cost = average_cluster_cost * np.power(2.0, range_value + 1)
 
         # The points assigned to this ring.
         self._points: List[ClusteredPoint] = []
@@ -325,8 +325,8 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                     break
             
             if point_put_in_ring == False:
-                inner_most_ring_cost = average_cluster_cost * np.power(2, ring_range_start)
-                outer_most_ring_cost = average_cluster_cost * np.power(2, ring_range_end + 1)
+                inner_most_ring_cost = average_cluster_cost * np.power(2.0, ring_range_start)
+                outer_most_ring_cost = average_cluster_cost * np.power(2.0, ring_range_end + 1)
 
                 if point_cost < inner_most_ring_cost:
                     # Track shortfall points: below l's lower range i.e. l<log⁡(1/β)
@@ -379,8 +379,8 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
             
             # Determine which points to include in the group
             for j in range(n_groups):
-                lower_bound = 1 / k * np.power(2, -j) * total_cost
-                upper_bound = 1 / k * np.power(2, -j + 1) * total_cost
+                lower_bound = 1 / k * np.power(2.0, -j) * total_cost
+                upper_bound = 1 / k * np.power(2.0, -j + 1) * total_cost
                 should_add_points_into_group = False
 
                 if j == 0:
@@ -427,8 +427,8 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
 
                 # Determine which points to include in the group
                 for j in range(groups.group_range_size):
-                    lower_bound = 1 / k * np.power(2, -j) * ring_cost
-                    upper_bound = 1 / k * np.power(2, -j + 1) * ring_cost
+                    lower_bound = 1 / k * np.power(2.0, -j) * ring_cost
+                    upper_bound = 1 / k * np.power(2.0, -j + 1) * ring_cost
                     should_add_points_into_group = False
 
                     if j == 0:
