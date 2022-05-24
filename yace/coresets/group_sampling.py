@@ -188,11 +188,11 @@ class RingSet:
         return self._range_end
     
     def find(self, cluster_index: int, range_value: int) -> Optional[Ring]:
-        key = tuple(cluster_index, range_value)
+        key = (cluster_index, range_value)
         return self._rings.get(key, None)
 
     def find_or_create(self, cluster_index: int, range_value: int, average_cluster_cost: float) -> Ring:
-        key = tuple(cluster_index, range_value)
+        key = (cluster_index, range_value)
         if key not in self._rings:
             self._rings[key] = Ring(
                 cluster_index=cluster_index,

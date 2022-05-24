@@ -5,8 +5,8 @@ import numpy as np
 
 class Coreset:
     def __init__(self, input_points: np.ndarray, cluster_labels: np.ndarray) -> None:
-        self._point_map = Dict[int, float] = dict()
-        self._cluster_map = Dict[int, float] = dict()
+        self._point_map: Dict[int, float] = dict()
+        self._cluster_map: Dict[int, float] = dict()
         self._input_points = input_points
         self._cluster_labels = cluster_labels
 
