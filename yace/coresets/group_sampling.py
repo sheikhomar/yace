@@ -9,6 +9,7 @@ import scipy.sparse as sp_sparse
 from scipy.sparse import issparse
 
 from yace.coresets.sampling import SamplingBasedAlgorithm
+from yace.coresets.coreset import Coreset
 
 
 @dataclasses.dataclass
@@ -100,6 +101,7 @@ class GroupSet:
     def iterator(self):
         for group in self._groups:
             yield group
+
 
 class Ring:
     def __init__(self, cluster_index: int, range_value: int, average_cluster_cost: float) -> None:
@@ -263,28 +265,37 @@ class RingSet:
         ]
 
 
-def stochastic_rounding(value: float) -> int:
+def stochastic_rounding(value: float, rng: np.random.Generator) -> int:
     value_low, value_high = np.floor(value), np.ceil(value)
     proba = (value - value_low) / (value_high - value_low)
-    if np.random.rand() < proba:
+    if rng.uniform() < proba:
         return int(value_high) # Round up with proba
     return int(value_low) # Round down with 1-proba
 
 
 class GroupSamplingSampling(SamplingBasedAlgorithm):
-    def __init__(self, n_clusters: int, coreset_size: int, beta: int, group_range_size: int, min_group_sampling_size: int) -> None:
+    def __init__(self, n_clusters: int, coreset_size: int, beta: int, group_range_size: int, min_group_sampling_size: int, rng: Optional[np.random.Generator]=None) -> None:
         super().__init__(n_clusters, coreset_size)
         self._beta = beta
         self._group_range_size = group_range_size
         self._min_group_sampling_size = min_group_sampling_size
+        self._rng = np.random.default_rng() if rng is None else rng
     
-    def run(self, A):
+    def run(self, A) -> Coreset:
         D = self._compute_initial_solution_via_kmeans_plus_plus(A=A)
-        
         cluster_labels = np.argmin(D, axis=1)
         point_costs = np.min(D, axis=1)
 
+        groups = GroupSet(group_range_size=self._group_range_size)
+        coreset = Coreset(input_points=A, cluster_labels=cluster_labels)
+
         rings = self._make_rings(point_costs=point_costs, cluster_labels=cluster_labels)
+        self._group_ring_points(rings=rings, groups=groups)
+        self._group_overshot_points(rings=rings, groups=groups, n_groups=5)
+        self._add_shortfall_points_to_coreset(rings=rings, coreset=coreset)
+        self._add_sampled_points_from_groups_to_coreset(point_costs=point_costs, groups=groups, coreset=coreset, min_sampling_size=1)
+
+        return coreset
 
     def _make_rings(self, point_costs: np.ndarray, cluster_labels: np.ndarray) -> RingSet:
         ring_range_start = -int(np.floor(np.log10(self._beta)))
@@ -338,7 +349,7 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
 
         return rings
 
-    def _add_shortfall_points_to_coreset(self, rings: RingSet):
+    def _add_shortfall_points_to_coreset(self, rings: RingSet, coreset: Coreset) -> None:
         """
         Handle points whose costs are below the lowest ring range i.e. l < log(1/beta).
         These are called shortfall points because they fall short of being captured by the
@@ -347,21 +358,14 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
         that cluster.
         """
 
-        cluster_indices = []
-        weights = []
-        
         for cluster_index in range(self._n_clusters):
             n_shortfall_points = rings.get_number_of_shortfall_points(cluster_index=cluster_index)
             if n_shortfall_points == 0:
                 # Not all clusters may have shortfall points so skip those.
                 continue
-            
-            weights.append(n_shortfall_points)
-            cluster_indices.append(cluster_indices)
-        
-        return cluster_indices, weights
+            coreset.add_cluster(cluster_index=cluster_index, weight=n_shortfall_points)
 
-    def _group_overshot_points(self, rings: RingSet, groups: GroupSet, n_groups: int = 5):
+    def _group_overshot_points(self, rings: RingSet, groups: GroupSet, n_groups: int):
         k = self._n_clusters
         total_cost = rings.compute_cost_of_overshot_points()
 
@@ -443,14 +447,8 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                     groups.add(group=group)
                     ring.add_points_to_group(group=group)
 
-    def add_sampled_points_from_groups_to_coreset(self, point_costs: np.ndarray, groups: GroupSet, min_sampling_size: int = 1):
+    def _add_sampled_points_from_groups_to_coreset(self, point_costs: np.ndarray, groups: GroupSet, coreset: Coreset, min_sampling_size: int):
         T = self._coreset_size
-        k = self._n_clusters
-
-        cluster_indices = []
-        cluster_weights = []
-        coreset_indices = []
-        coreset_weights = []
 
         total_cost = np.sum(point_costs)
 
@@ -458,7 +456,7 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
         n_remaining = T
 
         # Tracks the groups that we need to sample points from.
-        groups_to_sample_from = []
+        groups_to_sample_from: List[Group] = []
 
         # Track the total cost of the groups that we need to sample points from.
         sampling_group_total_cost = 0.0
@@ -475,22 +473,31 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                 for cluster_index in range(self._n_clusters):
                     weight = group.count_points_in_cluster(cluster_index=cluster_index)
                     if weight > 0:
-                        cluster_indices.append(cluster_index)
-                        cluster_weights.append(weight)
+                        coreset.add_cluster(cluster_index=cluster_index, weight=weight)
             elif n_samples >= group.count_points:
                 # Will not sample because T_m >= |G_m|.
+                # Simply add all group points with weight 1
                 group_point_indices = group.get_point_indices()
-                coreset_indices += group_point_indices
-                coreset_weights += [1.0 for i in range(len(group_point_indices))]
+                for point_index in group_point_indices:
+                    coreset.add_point(point_index=point_index, weight=1.0)
                 n_remaining -= len(group_point_indices)
             else:
                 groups_to_sample_from.append(group)
                 sampling_group_total_cost += group_cost
 
-        # Now, we deal with the groups that we can sample points from.
+        # Finally, sample points from the groups marked to be sampled from.
         for group in groups_to_sample_from:
             group_cost = group.total_cost
-            normalized_group_cost = group_cost / sampling_group_total_cost
+            normalized_sampling_group_cost = group_cost / sampling_group_total_cost
+            n_samples: float = n_remaining * normalized_sampling_group_cost
+            n_samples_rounded: int = stochastic_rounding(n_samples, self._rng)
 
-            n_samples = stochastic_rounding(n_remaining * normalized_group_cost)
-        
+            group_point_indices = group.get_point_indices()
+
+            sampled_points = self._rng.choice(a=group_point_indices, size=n_samples_rounded)
+            sampled_point_costs = point_costs[sampled_points]
+            sampled_weights = group_cost / (n_samples * sampled_point_costs)
+
+            # Add points to the coreset
+            for point_index, weight in zip(sampled_points, sampled_weights):
+                coreset.add_point(point_index=point_index, weight=weight)
