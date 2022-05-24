@@ -138,8 +138,14 @@ class Runner:
 
         print(f"Data generated: {X.shape}")
 
-        ss = GroupSamplingSampling(n_clusters=self._n_clusters, coreset_size=coreset_size, output_dir=self._output_dir)
-        ss.run(X)
+        gs = GroupSamplingSampling(
+            n_clusters=2*self._n_clusters,
+            coreset_size=coreset_size,
+            beta=10000,
+            group_range_size=4,
+            min_group_sampling_size=1,
+        )
+        coreset = gs.run(A=X)
 
 
 @click.command(help="Create jobs.")
