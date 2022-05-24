@@ -68,6 +68,13 @@ class Group:
     def count_points_in_cluster(self, cluster_index: int) -> int:
         """Counts the number of points in the given cluster."""
         return len(self._clustered_points[cluster_index])
+    
+    def get_point_indices(self) -> List[int]:
+        return [
+            cp.point_index
+            for points in self._clustered_points.values()
+            for cp in points
+        ]
 
 
 class GroupSet:
@@ -256,6 +263,14 @@ class RingSet:
         ]
 
 
+def stochastic_rounding(value: float) -> int:
+    value_high, value_low = np.floor(value), np.ceil(value)
+    proba = (value - value_low) / (value_high - value_low)
+    if np.random.rand() < proba:
+        return int(value_high) # Round up
+    return int(value_low) # Round down
+
+
 class GroupSamplingSampling(SamplingBasedAlgorithm):
     def __init__(self, n_clusters: int, coreset_size: int, beta: int, group_range_size: int, min_group_sampling_size: int) -> None:
         super().__init__(n_clusters, coreset_size)
@@ -434,6 +449,8 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
 
         cluster_indices = []
         cluster_weights = []
+        coreset_indices = []
+        coreset_weights = []
 
         total_cost = np.sum(point_costs)
 
@@ -441,11 +458,12 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
         n_remaining = T
 
         # Tracks the groups that we need to sample points from.
-        sampling_group_indices = []
+        groups_to_sample_from = []
 
         # Track the total cost of the groups that we need to sample points from.
         sampling_group_total_cost = 0.0
 
+        # Determine which groups to sample points from
         for group in groups.iterator():
             group_cost = group.total_cost
             normalized_group_cost = group_cost / total_cost
@@ -461,4 +479,17 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                         cluster_weights.append(weight)
             elif n_samples >= group.count_points:
                 # Will not sample because T_m >= |G_m|.
-                pass
+                group_point_indices = group.get_point_indices()
+                coreset_indices += group_point_indices
+                coreset_weights += [1.0 for i in range(len(group_point_indices))]
+                n_remaining -= len(group_point_indices)
+            else:
+                groups_to_sample_from.append(group)
+                sampling_group_total_cost += group_cost
+
+        for group in groups_to_sample_from:
+            group_cost = group.total_cost
+            normalized_group_cost = group_cost / sampling_group_total_cost
+
+            n_samples = n_remaining * normalized_group_cost
+        
