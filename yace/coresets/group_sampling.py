@@ -68,7 +68,9 @@ class Group:
 
     def count_points_in_cluster(self, cluster_index: int) -> int:
         """Counts the number of points in the given cluster."""
-        return len(self._clustered_points[cluster_index])
+        if cluster_index in self._clustered_points:
+            return len(self._clustered_points[cluster_index])
+        return 0
     
     def get_point_indices(self) -> List[int]:
         return [
@@ -171,9 +173,9 @@ class Ring:
 
 
 class RingSet:
-    def __init__(self, range_start: int, range_end: int, n_clusters: int) -> None:
-        self._range_start = range_start
-        self._range_end = range_end
+    def __init__(self, beta: float, n_clusters: int) -> None:
+        self._range_start = -int(np.floor(np.log10(beta)))
+        self._range_end = -self._range_start
         self._n_clusters = n_clusters
         self._rings: Dict[Tuple[int, int], Ring] = dict()
         self._overshot_points: List[RinglessPoint] = []
@@ -288,8 +290,11 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
 
         groups = GroupSet(group_range_size=self._group_range_size)
         coreset = Coreset(input_points=A, cluster_labels=cluster_labels)
+        average_cluster_costs = pd.DataFrame(
+            dict(cost=point_costs, label=cluster_labels)
+        ).groupby("label").mean()["cost"].to_numpy()
 
-        rings = self._make_rings(point_costs=point_costs, cluster_labels=cluster_labels)
+        rings = self._make_rings(point_costs=point_costs, cluster_labels=cluster_labels, average_cluster_costs=average_cluster_costs)
         self._group_ring_points(rings=rings, groups=groups)
         self._group_overshot_points(rings=rings, groups=groups, n_groups=5)
         self._add_shortfall_points_to_coreset(rings=rings, coreset=coreset)
@@ -297,17 +302,10 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
 
         return coreset
 
-    def _make_rings(self, point_costs: np.ndarray, cluster_labels: np.ndarray) -> RingSet:
-        ring_range_start = -int(np.floor(np.log10(self._beta)))
-        ring_range_end = -ring_range_start
-
+    def _make_rings(self, point_costs: np.ndarray, cluster_labels: np.ndarray, average_cluster_costs: np.ndarray) -> RingSet:
         n_points = point_costs.shape[0]
-        k = self._n_clusters
+        rings = RingSet(beta=self._beta, n_clusters=self._n_clusters)
 
-        rings = RingSet(range_start=ring_range_start, range_end=ring_range_end, n_clusters=k)
-
-        average_cluster_costs = pd.DataFrame(dict(cost=point_costs, label=cluster_labels)).groupby("label").mean()["cost"].to_numpy()
-        
         for point_index in range(n_points):
             cluster_index = cluster_labels[point_index]
             point_cost = point_costs[point_index]
@@ -316,8 +314,9 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
             average_cluster_cost = average_cluster_costs[cluster_index]
 
             point_put_in_ring = False
-            for l in range(ring_range_start, ring_range_end):
+            for l in range(rings.range_start, rings.range_end + 1):
                 ring = rings.find_or_create(cluster_index=cluster_index, range_value=l, average_cluster_cost=average_cluster_cost)
+                # print(f"Value of l={l}")
 
                 # Add point if cost(p, A) is within bounds i.e. between Δ_c*2^l and Δ_c*2^(l+1)
                 if ring.try_add_point(point_index=point_index, point_cost=point_cost):
@@ -325,10 +324,10 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                     break
             
             if point_put_in_ring == False:
-                inner_most_ring_cost = average_cluster_cost * np.power(2.0, ring_range_start)
-                outer_most_ring_cost = average_cluster_cost * np.power(2.0, ring_range_end + 1)
+                inner_most_ring_cost = average_cluster_cost * np.power(2.0, rings.range_start)
+                outer_most_ring_cost = average_cluster_cost * np.power(2.0, rings.range_end + 1)
 
-                if point_cost < inner_most_ring_cost:
+                if point_cost <= inner_most_ring_cost:
                     # Track shortfall points: below l's lower range i.e. l<log⁡(1/β)
                     rings.add_shortfall_point(
                         point_index=point_index,
@@ -415,7 +414,7 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
         for l in range(rings.range_start, rings.range_end+1):
             ring_cost = rings.calc_ring_cost(ring_range_value=l)
 
-            for cluster_index in self._n_clusters:
+            for cluster_index in range(self._n_clusters):
                 ring = rings.find(cluster_index=cluster_index, range_value=l)
 
                 if ring is None or ring.count_points == 0:
