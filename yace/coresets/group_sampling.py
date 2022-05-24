@@ -175,7 +175,7 @@ class RingSet:
         self._range_start = range_start
         self._range_end = range_end
         self._n_clusters = n_clusters
-        self._rings: Dict[Tuple[int, int], Ring] = []
+        self._rings: Dict[Tuple[int, int], Ring] = dict()
         self._overshot_points: List[RinglessPoint] = []
         self._shortfall_points: List[RinglessPoint] = []
 
