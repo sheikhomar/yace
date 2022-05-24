@@ -264,11 +264,11 @@ class RingSet:
 
 
 def stochastic_rounding(value: float) -> int:
-    value_high, value_low = np.floor(value), np.ceil(value)
+    value_low, value_high = np.floor(value), np.ceil(value)
     proba = (value - value_low) / (value_high - value_low)
     if np.random.rand() < proba:
-        return int(value_high) # Round up
-    return int(value_low) # Round down
+        return int(value_high) # Round up with proba
+    return int(value_low) # Round down with 1-proba
 
 
 class GroupSamplingSampling(SamplingBasedAlgorithm):
@@ -487,9 +487,10 @@ class GroupSamplingSampling(SamplingBasedAlgorithm):
                 groups_to_sample_from.append(group)
                 sampling_group_total_cost += group_cost
 
+        # Now, we deal with the groups that we can sample points from.
         for group in groups_to_sample_from:
             group_cost = group.total_cost
             normalized_group_cost = group_cost / sampling_group_total_cost
 
-            n_samples = n_remaining * normalized_group_cost
+            n_samples = stochastic_rounding(n_remaining * normalized_group_cost)
         
